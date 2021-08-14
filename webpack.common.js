@@ -7,7 +7,20 @@ module.exports = {
     minimizer: [new TerserJSPlugin({})],
   },
   plugins: [
-    new HtmlWebpackPlugin({ template: "src/index.html", inject: "body" }),
+    new HtmlWebpackPlugin({
+      template: "src/index.html",
+      inject: "body",
+      minify: {
+        collapseWhitespace: true,
+        keepClosingSlash: true,
+        removeComments: true,
+        removeRedundantAttributes: true,
+        removeScriptTypeAttributes: true,
+        removeStyleLinkTypeAttributes: true,
+        useShortDoctype: true,
+        minifyCSS: true,
+      },
+    }),
     new CleanWebpackPlugin(),
   ],
   resolve: { extensions: [".ts", ".js"] },

@@ -134,7 +134,6 @@ function linkShader(
   fragmentShader: WebGLShader
 ) {
   const newProgram = gl.createProgram();
-  if (!newProgram) throw Error(`Couldn't create new program...`);
   gl.attachShader(newProgram, vertexShader);
   gl.attachShader(newProgram, fragmentShader);
   gl.linkProgram(newProgram);

@@ -41,6 +41,12 @@ canvas.height = height;
 const div = document.createElement("div");
 div.appendChild(canvas);
 document.body.appendChild(canvas);
+
+const textBox = document.createElement("div");
+textBox.classList.add("text");
+document.body.appendChild(textBox);
+setTimeout(() => displayText("Absorbed"), 1);
+
 const res = new Float32Array([canvas.width, canvas.height]);
 
 const player: Circle = {
@@ -311,6 +317,17 @@ function getCanvasHeight(canvas) {
 
 function clamp(num: number, min: number, max: number): number {
   return Math.min(Math.max(num, min), max);
+}
+
+function displayText(text, delay = 0) {
+  setTimeout(() => {
+    textBox.innerText = text;
+    textBox.style.opacity = "1.0";
+  }, delay);
+}
+
+function hideText(delay = 0) {
+  setTimeout(() => (textBox.style.opacity = "0.0"), delay);
 }
 
 interface Circle {

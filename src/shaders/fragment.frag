@@ -113,6 +113,7 @@ void main() {
   d = smin(d, dBox, .12);
 
   for (int i = 0; i < 3; i++) {
+    if (uCircleProps[i].z <= 0.0) continue; 
     float d2 = circleDist(uCircleProps[i].xy - st - uCameraProps.xy, uCircleProps[i].z);
     d = smin(d2, d, 0.12);
   }
