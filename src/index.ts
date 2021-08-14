@@ -33,6 +33,7 @@ const GROW_TIME = 5000;
 const GROW_SIZE = 0.2;
 
 let currentSize = 0.1;
+let borderSize = 0.5;
 
 canvas.id = "game";
 canvas.width = width;
@@ -43,7 +44,7 @@ document.body.appendChild(canvas);
 const res = new Float32Array([canvas.width, canvas.height]);
 
 const player: Circle = {
-  props: new Float32Array([0.0, 0.5, currentSize, 0.0]),
+  props: new Float32Array([0.0, 0.0, currentSize, 0.0]),
   vel: new Float32Array([0.0, 0.0]),
   r: 1.0,
 };
@@ -113,6 +114,10 @@ const programInfo: GameProgramCache = {
       program,
       FRAGMENT_SHADER.uniforms["uTime"].variableName
     ),
+    uBorder: ctx.getUniformLocation(
+      program,
+      FRAGMENT_SHADER.uniforms["uBorder"].variableName
+    ),
   },
 };
 
@@ -138,6 +143,30 @@ function updatePlayerPosition() {
 
   player.props[0] += player.vel[0];
   player.props[1] += player.vel[1];
+
+  // Left border
+  if (player.props[0] - player.props[2] <= -borderSize) {
+    player.props[0] = Math.max(-borderSize + player.props[2], player.props[0]);
+    player.vel[0] = Math.abs(player.vel[0]);
+  }
+
+  // Right border
+  if (player.props[0] + player.props[2] >= borderSize) {
+    player.props[0] = Math.min(borderSize - player.props[2], player.props[0]);
+    player.vel[0] = -Math.abs(player.vel[0]);
+  }
+
+  // Top border
+  if (player.props[1] + player.props[2] >= borderSize) {
+    player.props[1] = Math.min(borderSize - player.props[2], player.props[1]);
+    player.vel[1] = -Math.abs(player.vel[1]);
+  }
+
+  // Bottom border
+  if (player.props[1] - player.props[2] <= -borderSize) {
+    player.props[1] = Math.max(-borderSize + player.props[2], player.props[1]);
+    player.vel[1] = Math.abs(player.vel[1]);
+  }
 }
 
 function updateCameraPosition() {
@@ -205,6 +234,9 @@ function tick(t: number) {
 
   //////////////// camera props
   ctx.uniform4fv(programInfo.uniforms.uCameraProps, camera.props);
+
+  //////////////// border props
+  ctx.uniform1f(programInfo.uniforms.uBorder, borderSize);
 
   //////////////// circle props
   ctx.uniform4fv(programInfo.uniforms.uCircleProps, circleProps);
@@ -298,6 +330,7 @@ interface GameProgramCache extends ProgramCache {
     uCircleProps: WebGLUniformLocation | null;
     uCameraProps: WebGLUniformLocation | null;
     uTime: WebGLUniformLocation | null;
+    uBorder: WebGLUniformLocation | null;
   };
 }
 

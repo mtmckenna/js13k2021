@@ -6,6 +6,7 @@ uniform vec4 uPlayerProps;
 uniform vec4 uCircleProps[3];
 uniform vec4 uCameraProps;
 uniform float uTime;
+uniform float uBorder;
 
 float circleDist(vec2 p, float radius) {
   return length(p) - radius;
@@ -84,36 +85,26 @@ vec4 colorCircle(vec4 _color, float _d) {
   return mix(vec4(1.0), _color, _d);
 }
 
+vec3 pal( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d )
+{
+    return a + b*cos( 6.28318*(c*t+d) );
+}
+
 void main() {
   vec2 st = (gl_FragCoord.xy - .5 * uRes) / min(uRes.x, uRes.y);
-  vec4 color = vec4(.3*abs(sin(st.x+uTime/10000.0)),abs(cos(st.y+uTime/3000.0)),.8 * abs(cos(sin((st.x+st.y)+uTime/2000.0))),1.0);
+  // vec4 color = vec4(.3*abs(sin(st.x+uTime/10000.0)),abs(cos(st.y+uTime/3000.0)),.8 * abs(cos(sin((st.x+st.y)+uTime/2000.0))),1.0);
   // color = vec4(1.0,0.,0.,1.);
+  float t =  abs(cos(sin((st.x+st.y)+uTime/2000.0)));
+  vec4 color = vec4(pal(t, vec3(0.025,0.025,0.1),vec3(0.025,0.025,0.1),vec3(1.0,1.0,1.0),vec3(0.0,0.1,0.2)), 1.);
 
-  // color = vec4(1.0,1.-smoothstep(-1.1, -1., uPlayerProps.x),0.0,1.); 
-  // color += colorCircle(color, 1.-strokeBoth(smoothstep(-1.1, -1., uPlayerProps.x),.01,.001)); 
-  // if (uPlayerProps.x < -1.0 || uPlayerProps.y < -1.0) {
-  //   color = vec4(0.0,1.0,0.0,1.0);
-  // }
-
-  // vec2 playerCamDiff = uPlayerProps.xy - uCameraProps.xy;
-
-  // float d = circleDist(uPlayerProps.xy - st, uPlayerProps.z);
 
   float d = circleDist(st, uPlayerProps.z);
-  // float dWall = strokeBoth(smoothstep(-1.1, -1., uPlayerProps.x),-.01, -.001);
 
-  // float dBox = sdBox(vec2(-1.0, 0.0) -st - uCameraProps.xy, vec2(.5,.5));
-  // d = merge(d, dBox);
-  // dBox = sdBox(vec2(0.0, 1.0) -st - uCameraProps.xy, vec2(.5,.5));
-  // d = merge(d, dBox);
-
-  // float dWall = strokeBoth(-0.5 - st.x - uCameraProps.x, .1, .03);
   
-  
-  float dBoxT  = sdBox(vec2(0.0,  1.0) -st - uCameraProps.xy, vec2(1.0, .00001));
-  float dBoxR  = sdBox(vec2(1.0,  0.0) -st - uCameraProps.xy, vec2(.00001, 1.0));
-  float dBoxB  = sdBox(vec2(0.0, -1.0) -st - uCameraProps.xy, vec2(1.0, .00001));
-  float dBoxL  = sdBox(vec2(-1.0, 0.0) -st - uCameraProps.xy, vec2(.00001, 1.0));
+  float dBoxT  = sdBox(vec2(0.0,  uBorder) -st - uCameraProps.xy, vec2(uBorder, .00001));
+  float dBoxR  = sdBox(vec2(uBorder,  0.0) -st - uCameraProps.xy, vec2(.00001, uBorder));
+  float dBoxB  = sdBox(vec2(0.0, -uBorder) -st - uCameraProps.xy, vec2(uBorder, .00001));
+  float dBoxL  = sdBox(vec2(-uBorder, 0.0) -st - uCameraProps.xy, vec2(.00001, uBorder));
 
   float dBox = smin(dBoxT, dBoxR, .001);
   dBox = smin(dBox, dBoxB, .001);
