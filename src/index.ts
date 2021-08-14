@@ -29,6 +29,10 @@ const MOVING_SPEED = 0.003;
 const MAX_VEL = MOVING_SPEED * 2;
 const FRICTION = 0.96;
 const MIN_VEL_THRESHOLD = 0.00015;
+const GROW_TIME = 5000;
+const GROW_SIZE = 0.2;
+
+let currentSize = 0.1;
 
 canvas.id = "game";
 canvas.width = width;
@@ -39,7 +43,7 @@ document.body.appendChild(canvas);
 const res = new Float32Array([canvas.width, canvas.height]);
 
 const player: Circle = {
-  pos: new Float32Array([0.0, 0.5]),
+  props: new Float32Array([0.0, 0.5, currentSize, 0.0]),
   vel: new Float32Array([0.0, 0.0]),
   r: 1.0,
 };
@@ -52,10 +56,10 @@ const soundBank: { [key: string]: Sound | null } = {
 
 const circleStartX = -0.2;
 // prettier-ignore
-const circlePos = new Float32Array([
- .45, .45,
- .9, .9,
- -circleStartX, -0.
+const circleProps = new Float32Array([
+ .45, .45, .025, 0.0,
+ .9,  .9 , .025, 0.0, 
+ -circleStartX, -0.0, 0.025, 0.0
 ]);
 
 // prettier-ignore
@@ -89,13 +93,13 @@ const programInfo: ProgramCache = {
       program,
       FRAGMENT_SHADER.uniforms["uRes"].variableName
     ),
-    uPosition: ctx.getUniformLocation(
+    uPlayerProps: ctx.getUniformLocation(
       program,
-      FRAGMENT_SHADER.uniforms["uPosition"].variableName
+      FRAGMENT_SHADER.uniforms["uPlayerProps"].variableName
     ),
-    uCirclePos: ctx.getUniformLocation(
+    uCircleProps: ctx.getUniformLocation(
       program,
-      FRAGMENT_SHADER.uniforms["uCirclePos"].variableName
+      FRAGMENT_SHADER.uniforms["uCircleProps"].variableName
     ),
     uTime: ctx.getUniformLocation(
       program,
@@ -124,8 +128,8 @@ function updatePlayerPosition() {
 
   player.vel[1] = clamp(player.vel[1], -MAX_VEL, MAX_VEL);
 
-  player.pos[0] += player.vel[0];
-  player.pos[1] += player.vel[1];
+  player.props[0] += player.vel[0];
+  player.props[1] += player.vel[1];
 }
 
 function playAudio() {
@@ -181,11 +185,12 @@ function tick(t: number) {
   res[1] = canvas.height;
   ctx.uniform2fv(programInfo.uniforms.uRes, res);
 
-  //////////////// player pos
-  ctx.uniform2fv(programInfo.uniforms.uPosition, player.pos);
+  //////////////// player props
+  player.props[2] = currentSize;
+  ctx.uniform4fv(programInfo.uniforms.uPlayerProps, player.props);
 
-  //////////////// circle pos
-  ctx.uniform2fv(programInfo.uniforms.uCirclePos, circlePos);
+  //////////////// circle props
+  ctx.uniform4fv(programInfo.uniforms.uCircleProps, circleProps);
 
   //////////////// time
   ctx.uniform1f(programInfo.uniforms.uTime, t);
@@ -193,13 +198,13 @@ function tick(t: number) {
   //////////// draw
   ctx.drawArrays(ctx.TRIANGLES, 0, 6);
 
-  if (checkCircleIntersection(circlePos[4], circlePos[5], 0.05)) {
+  if (checkCircleIntersection(circleProps[4], circleProps[5], 0.05)) {
     playSoundBankFunction("absorb", playAbsorbChord);
   } else {
     stopSoundBankFunction("absorb");
   }
 
-  if (checkCircleAbsorption(circlePos[4], circlePos[5], 0.025)) {
+  if (checkCircleAbsorption(circleProps[4], circleProps[5], 0.025)) {
     playSoundBankFunction("absorbed", playAbsorbedChord);
   } else {
     stopSoundBankFunction("absorbed", 2);
@@ -235,7 +240,7 @@ function distance(x1: number, y1: number, x2: number, y2: number): number {
 }
 
 function distanceBetweenCircles(x: number, y: number): number {
-  return distance(player.pos[0], player.pos[1], x, y);
+  return distance(player.props[0], player.props[1], x, y);
 }
 
 function checkCircleAbsorption(x: number, y: number, r: number): boolean {
@@ -244,7 +249,7 @@ function checkCircleAbsorption(x: number, y: number, r: number): boolean {
 }
 
 function updateCircles(t: number) {
-  circlePos[4] = circleStartX + Math.sin(t / 1000.0) / 2;
+  circleProps[4] = circleStartX + Math.sin(t / 1000.0) / 2;
 }
 
 function getAspectRatio() {
@@ -260,7 +265,26 @@ function clamp(num: number, min: number, max: number): number {
 }
 
 interface Circle {
-  pos: Float32Array;
+  props: Float32Array;
   vel: Float32Array;
   r: number;
+}
+
+function lerp(x1: number, x2: number, t: number) {
+  x1 * (1 - t) + x2 * t;
+}
+
+function easeOutBounce(x: number): number {
+  const n1 = 7.5625;
+  const d1 = 2.75;
+
+  if (x < 1 / d1) {
+    return n1 * x * x;
+  } else if (x < 2 / d1) {
+    return n1 * (x -= 1.5 / d1) * x + 0.75;
+  } else if (x < 2.5 / d1) {
+    return n1 * (x -= 2.25 / d1) * x + 0.9375;
+  } else {
+    return n1 * (x -= 2.625 / d1) * x + 0.984375;
+  }
 }

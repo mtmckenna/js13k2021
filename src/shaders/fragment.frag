@@ -2,8 +2,8 @@
 precision highp float;
 
 uniform vec2 uRes;
-uniform vec2 uPosition;
-uniform vec2 uCirclePos[3];
+uniform vec4 uPlayerProps;
+uniform vec4 uCircleProps[3];
 uniform float uTime;
 
 float circleDist(vec2 p, float radius) {
@@ -28,20 +28,27 @@ float opS( float d1, float d2 )
     return max(-d1,d2);
 }
 
+float intersect(float shape1, float shape2){
+    return max(shape1, shape2);
+}
+
+float merge(float shape1, float shape2){
+    return min(shape1, shape2);
+}
+
 float stroke(float x, float w) {
   float d = step(0., x+w*.5) - step(0., x-w*.5);
   return 1.0 -clamp(d, 0.0, 1.0);
 }
 
-float strokeIn(float x, float w, float fuzz) {
+float strokeBoth(float x, float w, float fuzz) {
   float d = smoothstep(fuzz, x-w*.5 - fuzz, x);
-  return clamp(d, 0.0, 1.0);
-}
+  float d2 = smoothstep(w*.5 + fuzz, x+w*.5 + fuzz, x);
+  d = clamp(d, 0.0, 1.0);
+  d2 = clamp(d2, 0.0, 1.0);
 
-float strokeOut(float x, float w, float fuzz) {
-  float d = smoothstep(w*.5 + fuzz, x+w*.5 + fuzz, x);
-  return clamp(d, 0.0, 1.0);
-}
+  return merge(d,d2);
+} 
 
 float smin( float a, float b, float k )
 {
@@ -57,19 +64,14 @@ void main() {
   vec2 st = (gl_FragCoord.xy - .5 * uRes) / min(uRes.x, uRes.y);
   vec4 color = vec4(.3*abs(sin(st.x+uTime/10000.0)),abs(cos(st.y+uTime/3000.0)),.8 * abs(cos(sin((st.x+st.y)+uTime/2000.0))),1.0);
 
-  float d = circleDist(uPosition - st, 0.1);
+  float d = circleDist(uPlayerProps.xy - st, uPlayerProps.z);
 
   for (int i = 0; i < 3; i++) {
-    float d2 = circleDist(uCirclePos[i]- st, 0.025);
+    float d2 = circleDist(uCircleProps[i].xy - st, uCircleProps[i].z);
     d = smin(d2, d, 0.12);
   }
 
-  // color = colorCircle(color, smoothFill(d, 0.0000001, 0.01));
-    // color = colorCircle(color, stroke(d, .01));
-
-  color = colorCircle(color, strokeIn(d, .01, .001));
-  color += colorCircle(color, strokeOut(d, .01, .001));
-  // color = colorCircle(color, fill(d, .000001));
+  color = colorCircle(color, strokeBoth(d, .01, .001));
 
 
   gl_FragColor = color;
