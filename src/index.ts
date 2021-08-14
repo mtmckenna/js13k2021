@@ -48,6 +48,10 @@ const player: Circle = {
   r: 1.0,
 };
 
+const camera: Camera = {
+  props: new Float32Array([0.0, 0.0, 0.0, 0.0]),
+};
+
 const soundBank: { [key: string]: Sound | null } = {
   move: null,
   absorb: null,
@@ -84,7 +88,7 @@ const program = compiledProgram(
 const squareBuffer = ctx.createBuffer();
 ctx.useProgram(program);
 
-const programInfo: ProgramCache = {
+const programInfo: GameProgramCache = {
   attributes: {
     aSquarePosition: ctx.getAttribLocation(program, "aSquarePosition"),
   },
@@ -100,6 +104,10 @@ const programInfo: ProgramCache = {
     uCircleProps: ctx.getUniformLocation(
       program,
       FRAGMENT_SHADER.uniforms["uCircleProps"].variableName
+    ),
+    uCameraProps: ctx.getUniformLocation(
+      program,
+      FRAGMENT_SHADER.uniforms["uCameraProps"].variableName
     ),
     uTime: ctx.getUniformLocation(
       program,
@@ -132,6 +140,11 @@ function updatePlayerPosition() {
   player.props[1] += player.vel[1];
 }
 
+function updateCameraPosition() {
+  camera.props[0] = player.props[0];
+  camera.props[1] = player.props[1];
+}
+
 function playAudio() {
   const playerMoved = distance(player.vel[0], player.vel[1], 0, 0);
   if (playerMoved >= MIN_VEL_THRESHOLD) {
@@ -145,6 +158,7 @@ function tick(t: number) {
   requestAnimationFrame(tick);
 
   updatePlayerPosition();
+  updateCameraPosition();
   playAudio();
   if (inputState.s) {
     if (!backgroundSound) {
@@ -188,6 +202,9 @@ function tick(t: number) {
   //////////////// player props
   player.props[2] = currentSize;
   ctx.uniform4fv(programInfo.uniforms.uPlayerProps, player.props);
+
+  //////////////// camera props
+  ctx.uniform4fv(programInfo.uniforms.uCameraProps, camera.props);
 
   //////////////// circle props
   ctx.uniform4fv(programInfo.uniforms.uCircleProps, circleProps);
@@ -268,6 +285,20 @@ interface Circle {
   props: Float32Array;
   vel: Float32Array;
   r: number;
+}
+
+interface Camera {
+  props: Float32Array;
+}
+
+interface GameProgramCache extends ProgramCache {
+  uniforms: {
+    uRes: WebGLUniformLocation | null;
+    uPlayerProps: WebGLUniformLocation | null;
+    uCircleProps: WebGLUniformLocation | null;
+    uCameraProps: WebGLUniformLocation | null;
+    uTime: WebGLUniformLocation | null;
+  };
 }
 
 function lerp(x1: number, x2: number, t: number) {

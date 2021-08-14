@@ -1,5 +1,3 @@
-import { GlslShader } from "webpack-glsl-minify";
-
 export interface ProgramCache {
   attributes: { [key: string]: number };
   uniforms: { [key: string]: WebGLUniformLocation | null };
@@ -119,14 +117,11 @@ function compileShader(
   shaderSrc: string
 ) {
   const shader = gl.createShader(type);
-  if (!shader) throw Error(`Couldn't create shader...`);
   gl.shaderSource(shader, shaderSrc);
   gl.compileShader(shader);
 
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    throw new Error(
-      gl.getShaderInfoLog(shader) || "Couldn't get program info..."
-    );
+    throw new Error(gl.getShaderInfoLog(shader));
   }
 
   return shader;
@@ -145,9 +140,7 @@ function linkShader(
   gl.linkProgram(newProgram);
 
   if (!gl.getProgramParameter(newProgram, gl.LINK_STATUS)) {
-    throw new Error(
-      gl.getProgramInfoLog(newProgram) || "Couldn't get program info..."
-    );
+    throw new Error(gl.getProgramInfoLog(newProgram));
   }
 
   return newProgram;
