@@ -35,6 +35,10 @@ const GROW_SIZE = 0.2;
 let currentSize = 0.1;
 let borderSize = 0.5;
 
+const gameState: GameState = {
+  started: false,
+};
+
 canvas.id = "game";
 canvas.width = width;
 canvas.height = height;
@@ -189,8 +193,24 @@ function playAudio() {
   }
 }
 
+function hideTitle() {
+  if (!gameState.started) {
+    if (
+      inputState.up ||
+      inputState.right ||
+      inputState.down ||
+      inputState.left
+    ) {
+      gameState.started = true;
+      hideText();
+    }
+  }
+}
+
 function tick(t: number) {
   requestAnimationFrame(tick);
+
+  hideTitle();
 
   updatePlayerPosition();
   updateCameraPosition();
@@ -349,6 +369,10 @@ interface GameProgramCache extends ProgramCache {
     uTime: WebGLUniformLocation | null;
     uBorder: WebGLUniformLocation | null;
   };
+}
+
+interface GameState {
+  started: boolean;
 }
 
 function lerp(x1: number, x2: number, t: number) {
