@@ -1,7 +1,3 @@
-window.addEventListener("mousedown", inputPressed, false);
-window.addEventListener("touchstart", inputPressed, false);
-window.addEventListener("mouseup", inputReleased, false);
-window.addEventListener("touchend", inputReleased, false);
 window.addEventListener("keydown", (e: KeyboardEvent) => {
   switch (e.key) {
     case "ArrowLeft":
@@ -43,6 +39,16 @@ window.addEventListener("keyup", (e: KeyboardEvent) => {
       break;
   }
 });
+
+export function addEventListeners(element: HTMLElement) {
+  element.addEventListener("mousedown", inputPressed, false);
+  element.addEventListener("mouseup", inputReleased, false);
+
+  element.addEventListener("touchstart", inputPressed, false);
+  element.addEventListener("touchend", inputReleased, false);
+  element.addEventListener("touchmove", preventDefault, false);
+  element.addEventListener("touchcancel", preventDefault, false);
+}
 
 export const inputState: InputState = {
   left: false,
@@ -89,12 +95,15 @@ function inputPressed(e: MouseEvent | TouchEvent) {
 }
 
 function inputReleased(e: MouseEvent | TouchEvent) {
-  console.log("RELEASE");
   e.preventDefault();
   inputState.up = false;
   inputState.right = false;
   inputState.down = false;
   inputState.left = false;
+}
+
+function preventDefault(e: TouchEvent) {
+  e.preventDefault();
 }
 
 interface InputState {

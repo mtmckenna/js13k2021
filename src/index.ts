@@ -19,7 +19,7 @@ import {
   Sound,
 } from "./audio";
 
-import { inputState } from "./input";
+import { inputState, addEventListeners } from "./input";
 
 const canvas: HTMLCanvasElement = document.createElement("canvas");
 const ctx = canvas.getContext("webgl");
@@ -50,6 +50,8 @@ const textBox = document.createElement("div");
 textBox.classList.add("text");
 document.body.appendChild(textBox);
 setTimeout(() => displayText("Absorbed"), 1);
+
+addEventListeners(canvas);
 
 const res = new Float32Array([canvas.width, canvas.height]);
 
