@@ -18,6 +18,10 @@ float circleDist(vec2 p, float radius) {
   return length(p) - radius;
 }
 
+float rand(vec2 co){
+    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
 float sdRoundedBox( in vec2 p, in vec2 b, in vec4 r )
 {
     r.xy = (p.x>0.0)?r.xy : r.zw;

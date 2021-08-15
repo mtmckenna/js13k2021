@@ -33,7 +33,7 @@ const GROW_TIME = 5000;
 const GROW_SIZE = 0.2;
 
 let currentSize = 0.1;
-let borderSize = 0.5;
+let borderSize = 1.5;
 
 const gameState: GameState = {
   started: false,
@@ -182,6 +182,12 @@ function updatePlayerPosition() {
 function updateCameraPosition() {
   camera.props[0] = player.props[0];
   camera.props[1] = player.props[1];
+
+  // stop camera at border
+  if (camera.props[0] < -borderSize) camera.props[0] = -borderSize;
+  if (camera.props[0] > borderSize) camera.props[0] = borderSize;
+  if (camera.props[1] < -borderSize) camera.props[1] = -borderSize;
+  if (camera.props[1] > borderSize) camera.props[1] = borderSize;
 }
 
 function playAudio() {
