@@ -18,7 +18,7 @@ const gain = audioContext.createGain();
 
 // gain.connect(audioContext.destination);
 gain.connect(compressor);
-gain.gain.value = 0.0005;
+gain.gain.value = 0.0;
 
 const p0 = () => playSequence([0], [0.1], WAVE_TYPE);
 const p1 = () => playSequence([500], [0.3], WAVE_TYPE);

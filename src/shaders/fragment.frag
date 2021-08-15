@@ -1,4 +1,5 @@
 #version 100
+
 precision highp float;
 
 uniform vec2 uRes;
@@ -7,6 +8,11 @@ uniform vec4 uCircleProps[3];
 uniform vec4 uCameraProps;
 uniform float uTime;
 uniform float uBorder;
+
+const float WALL_FUZZ = .025;
+const float CIRCLE_FUZZ = .00001;
+const float BEND = .001;
+const float BEND2 = .12;
 
 float circleDist(vec2 p, float radius) {
   return length(p) - radius;
@@ -87,7 +93,7 @@ vec4 colorCircle(vec4 _color, float _d) {
 
 vec3 pal( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d )
 {
-    return a + b*cos( 6.28318*(c*t+d) );
+  return a + b*cos( 6.28318*(c*t+d) );
 }
 
 void main() {
@@ -95,32 +101,43 @@ void main() {
   // vec4 color = vec4(.3*abs(sin(st.x+uTime/10000.0)),abs(cos(st.y+uTime/3000.0)),.8 * abs(cos(sin((st.x+st.y)+uTime/2000.0))),1.0);
   // color = vec4(1.0,0.,0.,1.);
   float t =  abs(cos(sin((st.x+st.y)+uTime/2000.0)));
-  vec4 color = vec4(pal(t, vec3(0.025,0.025,0.1),vec3(0.025,0.025,0.1),vec3(1.0,1.0,1.0),vec3(0.0,0.1,0.2)), 1.);
+  vec4 colorInside = vec4(pal(t, vec3(0.025,0.025,0.1),vec3(0.025,0.025,0.1),vec3(1.0,1.0,1.0),vec3(0.0,0.1,0.2)), 1.);
+  vec4 colorOutside = vec4(pal(t, vec3(0.25,0.25,0.1),vec3(0.25,0.25,0.1),vec3(1.0,1.0,1.0),vec3(0.0,0.1,0.2)), 1.);
+  vec4 color = colorInside;
 
+
+  float top = smoothstep(uBorder - WALL_FUZZ, uBorder + WALL_FUZZ, (st + uCameraProps.xy).y);
+  float right = smoothstep(uBorder - WALL_FUZZ, uBorder + WALL_FUZZ, (st + uCameraProps.xy).x);
+  float bottom = smoothstep(-uBorder - WALL_FUZZ, -uBorder + WALL_FUZZ, (st + uCameraProps.xy).y);
+  float left = smoothstep(-uBorder - WALL_FUZZ, -uBorder + WALL_FUZZ, (st + uCameraProps.xy).x);
+
+  color = mix(color, colorOutside, top);
+  color = mix(color, colorOutside, right);
+  color = mix(colorOutside, color, bottom);
+  color = mix(colorOutside, color, left);
 
   float d = circleDist(st, uPlayerProps.z);
-
   
-  float dBoxT  = sdBox(vec2(0.0,  uBorder) -st - uCameraProps.xy, vec2(uBorder, .00001));
-  float dBoxR  = sdBox(vec2(uBorder,  0.0) -st - uCameraProps.xy, vec2(.00001, uBorder));
-  float dBoxB  = sdBox(vec2(0.0, -uBorder) -st - uCameraProps.xy, vec2(uBorder, .00001));
-  float dBoxL  = sdBox(vec2(-uBorder, 0.0) -st - uCameraProps.xy, vec2(.00001, uBorder));
+  float dBoxT = sdBox(vec2(0.0,  uBorder) -st - uCameraProps.xy, vec2(uBorder, .00001));
+  float dBoxR = sdBox(vec2(uBorder,  0.0) -st - uCameraProps.xy, vec2(.00001, uBorder));
+  float dBoxB = sdBox(vec2(0.0, -uBorder) -st - uCameraProps.xy, vec2(uBorder, .00001));
+  float dBoxL = sdBox(vec2(-uBorder, 0.0) -st - uCameraProps.xy, vec2(.00001, uBorder));
 
-  float dBox = smin(dBoxT, dBoxR, .001);
-  dBox = smin(dBox, dBoxB, .001);
-  dBox = smin(dBox, dBoxL, .001);
-
-  d = smin(d, dBox, .12);
+  float dBox = smin(dBoxT, dBoxR, BEND);
+  dBox = smin(dBox, dBoxB, BEND);
+  dBox = smin(dBox, dBoxL, BEND);
+  d = smin(d, dBox, BEND2);
 
   for (int i = 0; i < 3; i++) {
     if (uCircleProps[i].z <= 0.0) continue; 
     float d2 = circleDist(uCircleProps[i].xy - st - uCameraProps.xy, uCircleProps[i].z);
-    d = smin(d2, d, 0.12);
+    d = smin(d2, d, BEND2);
   }
 
-  color = colorCircle(color, strokeBoth(d, .01, .001));
+  // float outside = fill(sdBox(-st - uCameraProps.xy, vec2(uBorder - .1)),0.1);
+  float outside = smoothFill(sdBox(-st - uCameraProps.xy, vec2(uBorder - .1)),0.1,.1);
 
-
+  color = colorCircle(color, strokeBoth(d, .01, CIRCLE_FUZZ));
 
   gl_FragColor = color;
 }
