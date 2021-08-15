@@ -33,7 +33,7 @@ const GROW_TIME = 5000;
 const GROW_SIZE = 0.2;
 
 let currentSize = 0.1;
-let borderSize = 1.5;
+let borderSize = 0.5;
 
 const gameState: GameState = {
   started: false,

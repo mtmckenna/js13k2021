@@ -102,11 +102,10 @@ vec3 pal( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d )
 
 void main() {
   vec2 st = (gl_FragCoord.xy - .5 * uRes) / min(uRes.x, uRes.y);
-  float t =  abs(cos(sin((st.x+st.y*5.)+uTime/2000.0)));
+  float t =  abs(cos(sin((st.x+st.y*5.)+uTime/1000.0))) + atan(st.x * st.y);
   vec4 colorInside = vec4(pal(t, vec3(0.025,0.025,0.1),vec3(0.025,0.025,0.1),vec3(1.0,1.0,1.0),vec3(0.0,0.1,0.2)), 1.);
-  vec4 colorOutside = vec4(pal(t, vec3(0.25,0.25,0.1),vec3(0.25,0.25,0.1),vec3(1.0,1.0,1.0),vec3(0.0,0.1,0.2)), 1.);
+  vec4 colorOutside = vec4(pal(t, vec3(0.5,0.5,1.0),vec3(0.5,0.5,1.0),vec3(0.5,0.5,1.0),vec3(0.4,0.3,0.2)), 1.);
   vec4 color = colorInside;
-
 
   float top = smoothstep(uBorder - WALL_FUZZ, uBorder + WALL_FUZZ, (st + uCameraProps.xy).y);
   float right = smoothstep(uBorder - WALL_FUZZ, uBorder + WALL_FUZZ, (st + uCameraProps.xy).x);

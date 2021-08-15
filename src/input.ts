@@ -42,12 +42,13 @@ window.addEventListener("keyup", (e: KeyboardEvent) => {
 
 export function addEventListeners(element: HTMLElement) {
   element.addEventListener("mousedown", inputPressed, false);
+  element.addEventListener("mousemove", mouseMoved, false);
   element.addEventListener("mouseup", inputReleased, false);
 
-  element.addEventListener("touchstart", inputPressed, false);
-  element.addEventListener("touchend", inputReleased, false);
-  element.addEventListener("touchmove", preventDefault, false);
-  element.addEventListener("touchcancel", preventDefault, false);
+  element.addEventListener("touchstart", inputPressed, { passive: false });
+  element.addEventListener("touchend", inputReleased, { passive: false });
+  element.addEventListener("touchmove", inputMoved, { passive: false });
+  element.addEventListener("touchcancel", preventDefault, { passive: false });
 }
 
 export const inputState: InputState = {
@@ -91,19 +92,38 @@ function inputPressed(e: MouseEvent | TouchEvent) {
     inputState.down = true;
   }
 
-  console.log(x, y);
+  // console.log(x, y);
 }
 
 function inputReleased(e: MouseEvent | TouchEvent) {
   e.preventDefault();
+  e.stopPropagation();
   inputState.up = false;
   inputState.right = false;
   inputState.down = false;
   inputState.left = false;
 }
 
+function mouseMoved(e: MouseEvent) {
+  if (!anyInputPressed()) return;
+  inputReleased(e);
+  inputPressed(e);
+}
+
+function inputMoved(e: MouseEvent | TouchEvent) {
+  inputReleased(e);
+  inputPressed(e);
+}
+
 function preventDefault(e: TouchEvent) {
   e.preventDefault();
+  e.stopPropagation();
+}
+
+function anyInputPressed() {
+  return (
+    inputState.up || inputState.right || inputState.down || inputState.left
+  );
 }
 
 interface InputState {
