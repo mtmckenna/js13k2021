@@ -33,7 +33,7 @@ const GROW_TIME = 5000;
 const GROW_SIZE = 0.2;
 
 let currentSize = 0.1;
-let borderSize = 0.5;
+let borderSize = 1.5;
 
 const gameState: GameState = {
   started: false,
@@ -281,16 +281,27 @@ function tick(t: number) {
   //////////// draw
   ctx.drawArrays(ctx.TRIANGLES, 0, 6);
 
-  if (checkCircleIntersection(circleProps[4], circleProps[5], 0.05)) {
-    playSoundBankFunction("absorb", playAbsorbChord);
-  } else {
-    stopSoundBankFunction("absorb");
-  }
+  // absorb bubbles
+  for (let i = 0; i < circleProps.length; i += 4) {
+    const x = circleProps[i];
+    const y = circleProps[i + 1];
+    const r = circleProps[i + 2];
+    if (r === 0.0) continue;
 
-  if (checkCircleAbsorption(circleProps[4], circleProps[5], 0.025)) {
-    playSoundBankFunction("absorbed", playAbsorbedChord);
-  } else {
-    stopSoundBankFunction("absorbed", 2);
+    if (checkCircleIntersection(x, y, 0.05)) {
+      playSoundBankFunction("absorb", playAbsorbChord);
+    } else {
+      stopSoundBankFunction("absorb");
+    }
+
+    if (checkCircleAbsorption(x, y, 0.025)) {
+      playSoundBankFunction("absorbed", playAbsorbedChord);
+      console.log("YEAH");
+      circleProps[i + 2] = 0;
+      currentSize += 0.1;
+    } else {
+      stopSoundBankFunction("absorbed", 2);
+    }
   }
 }
 
