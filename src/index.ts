@@ -29,10 +29,10 @@ const MOVING_SPEED = 0.003;
 const MAX_VEL = MOVING_SPEED * 2;
 const FRICTION = 0.96;
 const MIN_VEL_THRESHOLD = 0.00015;
-const GROW_TIME = 5000;
-const GROW_SIZE = 0.2;
+const GROW_TIME = 500;
+const GROW_SIZE = 0.1;
 
-let currentSize = 0.1;
+// let currentSize = 0.1;
 let borderSize = 1.5;
 
 const gameState: GameState = {
@@ -55,10 +55,18 @@ addEventListeners(canvas);
 
 const res = new Float32Array([canvas.width, canvas.height]);
 
+const START_SIZE = 0.1;
+
 const player: Circle = {
-  props: new Float32Array([0.0, 0.0, currentSize, 0.0]),
+  props: new Float32Array([0.0, 0.0, START_SIZE, 0.0]),
   vel: new Float32Array([0.0, 0.0]),
-  r: 1.0,
+  animation: {
+    startTime: 0,
+    endTime: 0,
+    startValue: START_SIZE,
+    endValue: START_SIZE,
+    currentValue: START_SIZE,
+  },
 };
 
 const camera: Camera = {
@@ -263,7 +271,24 @@ function tick(t: number) {
   ctx.uniform2fv(programInfo.uniforms.uRes, res);
 
   //////////////// player props
-  player.props[2] = currentSize;
+  // player.props[2] = currentSize;
+
+  if (player.animation.startTime > 0) {
+    player.animation.currentValue = lerp(
+      player.animation.startValue,
+      player.animation.endValue,
+      (t - player.animation.startTime) / GROW_TIME
+    );
+
+    // player.animation.currentValue =
+    //   player.animation.endValue *
+    //   easeOutBounce(clamp((t - player.animation.startTime) / GROW_TIME, 0, 1));
+  }
+
+  player.props[2] = player.animation.currentValue;
+
+  // console.log(player.animation.currentValue);
+
   ctx.uniform4fv(programInfo.uniforms.uPlayerProps, player.props);
 
   //////////////// camera props
@@ -298,7 +323,20 @@ function tick(t: number) {
       playSoundBankFunction("absorbed", playAbsorbedChord);
       console.log("YEAH");
       circleProps[i + 2] = 0;
-      currentSize += 0.1;
+
+      console.log(JSON.stringify(player.animation));
+      player.animation.startTime = t;
+      player.animation.endTime = t + GROW_TIME;
+      player.animation.startValue = player.props[2];
+      player.props[2] += 0.1;
+      player.animation.endValue = player.props[2];
+      console.log("2");
+      console.log(JSON.stringify(player.animation));
+      // player.animation.currentValue = lerp(
+      //   player.animation.startValue,
+      //   player.animation.endValue,
+      //   (t - player.animation.startTime) / GROW_TIME
+      // );
     } else {
       stopSoundBankFunction("absorbed", 2);
     }
@@ -372,7 +410,15 @@ function hideText(delay = 0) {
 interface Circle {
   props: Float32Array;
   vel: Float32Array;
-  r: number;
+  animation: Animation;
+}
+
+interface Animation {
+  startTime: number;
+  endTime: number;
+  startValue: number;
+  endValue: number;
+  currentValue: number;
 }
 
 interface Camera {
@@ -395,7 +441,7 @@ interface GameState {
 }
 
 function lerp(x1: number, x2: number, t: number) {
-  x1 * (1 - t) + x2 * t;
+  return clamp(x1 * (1 - t) + x2 * t, x1, x2);
 }
 
 function easeOutBounce(x: number): number {
