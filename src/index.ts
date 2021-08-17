@@ -274,20 +274,17 @@ function tick(t: number) {
   // player.props[2] = currentSize;
 
   if (player.animation.startTime > 0) {
+    let pct = clamp((t - player.animation.startTime) / GROW_TIME, 0, 1); // get percent through animation, clamp between 0 and 1
+    pct = easeOutBack(pct); // add in easing function
+
     player.animation.currentValue = lerp(
       player.animation.startValue,
       player.animation.endValue,
-      (t - player.animation.startTime) / GROW_TIME
+      pct
     );
-
-    // player.animation.currentValue =
-    //   player.animation.endValue *
-    //   easeOutBounce(clamp((t - player.animation.startTime) / GROW_TIME, 0, 1));
   }
 
   player.props[2] = player.animation.currentValue;
-
-  // console.log(player.animation.currentValue);
 
   ctx.uniform4fv(programInfo.uniforms.uPlayerProps, player.props);
 
@@ -321,22 +318,13 @@ function tick(t: number) {
 
     if (checkCircleAbsorption(x, y, 0.025)) {
       playSoundBankFunction("absorbed", playAbsorbedChord);
-      console.log("YEAH");
       circleProps[i + 2] = 0;
 
-      console.log(JSON.stringify(player.animation));
       player.animation.startTime = t;
       player.animation.endTime = t + GROW_TIME;
       player.animation.startValue = player.props[2];
       player.props[2] += 0.1;
       player.animation.endValue = player.props[2];
-      console.log("2");
-      console.log(JSON.stringify(player.animation));
-      // player.animation.currentValue = lerp(
-      //   player.animation.startValue,
-      //   player.animation.endValue,
-      //   (t - player.animation.startTime) / GROW_TIME
-      // );
     } else {
       stopSoundBankFunction("absorbed", 2);
     }
@@ -441,20 +429,13 @@ interface GameState {
 }
 
 function lerp(x1: number, x2: number, t: number) {
-  return clamp(x1 * (1 - t) + x2 * t, x1, x2);
+  return x1 * (1 - t) + x2 * t;
 }
 
-function easeOutBounce(x: number): number {
-  const n1 = 7.5625;
-  const d1 = 2.75;
+// https://easings.net/#
+function easeOutBack(x: number): number {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
 
-  if (x < 1 / d1) {
-    return n1 * x * x;
-  } else if (x < 2 / d1) {
-    return n1 * (x -= 1.5 / d1) * x + 0.75;
-  } else if (x < 2.5 / d1) {
-    return n1 * (x -= 2.25 / d1) * x + 0.9375;
-  } else {
-    return n1 * (x -= 2.625 / d1) * x + 0.984375;
-  }
+  return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
 }
