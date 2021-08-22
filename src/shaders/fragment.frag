@@ -1,10 +1,11 @@
 #version 100
+#define NUM_CIRCLES 5
 
 precision highp float;
 
 uniform vec2 uRes;
 uniform vec4 uPlayerProps;
-uniform vec4 uCircleProps[3];
+uniform vec4 uCircleProps[NUM_CIRCLES];
 uniform vec4 uCameraProps;
 uniform float uTime;
 uniform float uBorder;
@@ -17,6 +18,61 @@ const float BEND2 = .12;
 float circleDist(vec2 p, float radius) {
   return length(p) - radius;
 }
+
+float msign(in float x) { return (x<0.0)?-1.0:1.0; }
+
+// https://www.iquilezles.org/www/articles/distfunctions2d/distfunctions2d.htm
+float sdEllipse( vec2 p, in vec2 ab )
+{
+  if( ab.x==ab.y ) return length(p)-ab.x;
+
+	p = abs( p ); 
+    if( p.x>p.y ){ p=p.yx; ab=ab.yx; }
+	
+	float l = ab.y*ab.y - ab.x*ab.x;
+	
+  float m = ab.x*p.x/l; 
+	float n = ab.y*p.y/l; 
+	float m2 = m*m;
+	float n2 = n*n;
+	
+    float c = (m2+n2-1.0)/3.0; 
+	float c3 = c*c*c;
+
+    float d = c3 + m2*n2;
+    float q = d  + m2*n2;
+    float g = m  + m *n2;
+
+    float co;
+
+    if( d<0.0 )
+    {
+        float h = acos(q/c3)/3.0;
+        float s = cos(h) + 2.0;
+        float t = sin(h) * sqrt(3.0);
+        float rx = sqrt( m2-c*(s+t) );
+        float ry = sqrt( m2-c*(s-t) );
+        co = ry + sign(l)*rx + abs(g)/(rx*ry);
+    }
+    else
+    {
+        float h = 2.0*m*n*sqrt(d);
+        float s = msign(q+h)*pow( abs(q+h), 1.0/3.0 );
+        float t = msign(q-h)*pow( abs(q-h), 1.0/3.0 );
+        float rx = -(s+t) - c*4.0 + 2.0*m2;
+        float ry =  (s-t)*sqrt(3.0);
+        float rm = sqrt( rx*rx + ry*ry );
+        co = ry/sqrt(rm-rx) + 2.0*g/rm;
+    }
+    co = (co-m)/2.0;
+
+    float si = sqrt( max(1.0-co*co,0.0) );
+ 
+    vec2 r = ab * vec2(co,si);
+	
+    return length(r-p) * msign(p.y-r.y);
+}
+
 
 float rand(vec2 co){
     return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
@@ -117,7 +173,9 @@ void main() {
   color = mix(colorOutside, color, bottom);
   color = mix(colorOutside, color, left);
 
-  float d = circleDist(st, uPlayerProps.z);
+  // float d = circleDist(st, uPlayerProps.z);
+  // float d = sdEllipse(st, vec2(uPlayerProps.z, uPlayerProps.z+.001));
+  float d = sdEllipse(st, vec2(uPlayerProps.z, uPlayerProps.z));
   
   float dBoxT = sdBox(vec2(0.0,  uBorder) -st - uCameraProps.xy, vec2(uBorder, .00001));
   float dBoxR = sdBox(vec2(uBorder,  0.0) -st - uCameraProps.xy, vec2(.00001, uBorder));
@@ -129,9 +187,10 @@ void main() {
   dBox = smin(dBox, dBoxL, BEND);
   d = smin(d, dBox, BEND2);
 
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < NUM_CIRCLES; i++) {
     if (uCircleProps[i].z <= 0.0) continue; 
-    float d2 = circleDist(uCircleProps[i].xy - st - uCameraProps.xy, uCircleProps[i].z);
+    // float d2 = circleDist(uCircleProps[i].xy - st - uCameraProps.xy, uCircleProps[i].z);
+    float d2 = sdEllipse(uCircleProps[i].xy - st - uCameraProps.xy, vec2(uCircleProps[i].z));
     d = smin(d2, d, BEND2);
   }
 

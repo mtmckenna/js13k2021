@@ -31,9 +31,15 @@ const FRICTION = 0.96;
 const MIN_VEL_THRESHOLD = 0.00015;
 const GROW_TIME = 500;
 const GROW_SIZE = 0.1;
+const circles: Array<OtherCircle> = [];
+let NUM_CIRCLES = 5;
+let MIN_CIRCLE_SIZE = 0.025;
+let MAX_CIRCLE_SIZE = 0.025;
+let MIN_CIRCLE_START_VEL = 0.001;
+let MAX_CIRCLE_START_VEL = 0.004;
 
 // let currentSize = 0.1;
-let borderSize = 1.5;
+let borderSize = 0.5;
 
 const gameState: GameState = {
   started: false,
@@ -57,7 +63,7 @@ const res = new Float32Array([canvas.width, canvas.height]);
 
 const START_SIZE = 0.1;
 
-const player: Circle = {
+const player: PlayerCircle = {
   props: new Float32Array([0.0, 0.0, START_SIZE, 0.0]),
   vel: new Float32Array([0.0, 0.0]),
   animation: {
@@ -69,6 +75,7 @@ const player: Circle = {
   },
 };
 
+// TODO: delete?
 const camera: Camera = {
   props: new Float32Array([0.0, 0.0, 0.0, 0.0]),
 };
@@ -79,13 +86,52 @@ const soundBank: { [key: string]: Sound | null } = {
   absorbed: null,
 };
 
-const circleStartX = -0.2;
-// prettier-ignore
-const circleProps = new Float32Array([
- .45, .45, .025, 0.0,
- .9,  .9 , .025, 0.0, 
- -circleStartX, -0.0, 0.025, 0.0
-]);
+let circleProps = new Float32Array(NUM_CIRCLES * 4);
+
+for (let i = 0; i < NUM_CIRCLES; i++) {
+  const radius = randomFloatBetween(MIN_CIRCLE_SIZE, MAX_CIRCLE_SIZE);
+
+  circleProps[i * 4 + 0] = randomFloatBetween(
+    -borderSize + radius,
+    borderSize - radius
+  );
+
+  circleProps[i * 4 + 1] = randomFloatBetween(
+    -borderSize + radius,
+    borderSize - radius
+  );
+
+  circleProps[i * 4 + 2] = radius;
+  circleProps[i * 4 + 3] = 0;
+
+  const vel = new Float32Array([
+    randomSign() *
+      randomFloatBetween(MIN_CIRCLE_START_VEL, MAX_CIRCLE_START_VEL),
+    randomSign() *
+      randomFloatBetween(MIN_CIRCLE_START_VEL, MAX_CIRCLE_START_VEL),
+  ]);
+
+  circles.push({
+    index: i,
+    vel: vel,
+    animation: {
+      startTime: 0,
+      endTime: 0,
+      startValue: START_SIZE,
+      endValue: START_SIZE,
+      currentValue: START_SIZE,
+    },
+  });
+}
+
+// console.log(circles);
+// console.log(JSON.stringify(circleProps));
+
+// const circleProps = new Float32Array([
+//  .45, .45, .025, 0.0,
+//  .9,  .9 , .025, 0.0,
+//  -circleStartX, -0.0, 0.025, 0.0
+// ]);
 
 // prettier-ignore
 const squarePositions = new Float32Array([
@@ -273,6 +319,8 @@ function tick(t: number) {
   //////////////// player props
   // player.props[2] = currentSize;
 
+  // console.log(player.props[0], player.props[1]);
+
   if (player.animation.startTime > 0) {
     let pct = clamp((t - player.animation.startTime) / GROW_TIME, 0, 1); // get percent through animation, clamp between 0 and 1
     pct = easeOutBack(pct); // add in easing function
@@ -304,31 +352,31 @@ function tick(t: number) {
   ctx.drawArrays(ctx.TRIANGLES, 0, 6);
 
   // absorb bubbles
-  for (let i = 0; i < circleProps.length; i += 4) {
-    const x = circleProps[i];
-    const y = circleProps[i + 1];
-    const r = circleProps[i + 2];
-    if (r === 0.0) continue;
+  // for (let i = 0; i < circleProps.length; i += 4) {
+  //   const x = circleProps[i];
+  //   const y = circleProps[i + 1];
+  //   const r = circleProps[i + 2];
+  //   if (r === 0.0) continue;
 
-    if (checkCircleIntersection(x, y, 0.05)) {
-      playSoundBankFunction("absorb", playAbsorbChord);
-    } else {
-      stopSoundBankFunction("absorb");
-    }
+  //   if (checkCircleIntersection(x, y, 0.05)) {
+  //     playSoundBankFunction("absorb", playAbsorbChord);
+  //   } else {
+  //     stopSoundBankFunction("absorb");
+  //   }
 
-    if (checkCircleAbsorption(x, y, 0.025)) {
-      playSoundBankFunction("absorbed", playAbsorbedChord);
-      circleProps[i + 2] = 0;
+  //   if (checkCircleAbsorption(x, y, 0.025)) {
+  //     playSoundBankFunction("absorbed", playAbsorbedChord);
+  //     circleProps[i + 2] = 0;
 
-      player.animation.startTime = t;
-      player.animation.endTime = t + GROW_TIME;
-      player.animation.startValue = player.props[2];
-      player.props[2] += 0.1;
-      player.animation.endValue = player.props[2];
-    } else {
-      stopSoundBankFunction("absorbed", 2);
-    }
-  }
+  //     player.animation.startTime = t;
+  //     player.animation.endTime = t + GROW_TIME;
+  //     player.animation.startValue = player.props[2];
+  //     player.props[2] += 0.1;
+  //     player.animation.endValue = player.props[2];
+  //   } else {
+  //     stopSoundBankFunction("absorbed", 2);
+  //   }
+  // }
 }
 
 requestAnimationFrame(tick);
@@ -369,7 +417,68 @@ function checkCircleAbsorption(x: number, y: number, r: number): boolean {
 }
 
 function updateCircles(t: number) {
-  circleProps[4] = circleStartX + Math.sin(t / 1000.0) / 2;
+  // circleProps[4] = circleStartX + Math.sin(t / 1000.0) / 2;
+
+  circles.forEach((circle) => {
+    circle.vel[0] = clamp(circle.vel[0], -MAX_VEL, MAX_VEL);
+    circle.vel[1] = clamp(circle.vel[1], -MAX_VEL, MAX_VEL);
+    // circle.vel[1] = Math.sign(circle.vel[1]) * Math.abs(circle.vel[1]);
+
+    // console.log(circle.vel);
+
+    circle.vel[1] = clamp(circle.vel[1], -MAX_VEL, MAX_VEL);
+
+    circleProps[circle.index * 4 + 0] += circle.vel[0];
+    circleProps[circle.index * 4 + 1] += circle.vel[1];
+
+    // Left border
+    if (
+      circleProps[circle.index * 4 + 0] - circleProps[circle.index * 4 + 2] <=
+      -borderSize
+    ) {
+      circleProps[circle.index * 4 + 0] = Math.max(
+        -borderSize + circleProps[circle.index * 4 + 2],
+        circleProps[circle.index * 4 + 0]
+      );
+      circle.vel[0] = Math.abs(circle.vel[0]);
+    }
+
+    // Right border
+    if (
+      circleProps[circle.index * 4 + 0] + circleProps[circle.index * 4 + 2] >=
+      borderSize
+    ) {
+      circleProps[circle.index * 4 + 0] = Math.min(
+        borderSize - circleProps[circle.index * 4 + 2],
+        circleProps[circle.index * 4 + 0]
+      );
+      circle.vel[0] = -Math.abs(circle.vel[0]);
+    }
+
+    // Top border
+    if (
+      circleProps[circle.index * 4 + 1] + circleProps[circle.index * 4 + 2] >=
+      borderSize
+    ) {
+      circleProps[circle.index * 4 + 1] = Math.min(
+        borderSize - circleProps[circle.index * 4 + 2],
+        circleProps[circle.index * 4 + 1]
+      );
+      circle.vel[1] = -Math.abs(circle.vel[1]);
+    }
+
+    // Bottom border
+    if (
+      circleProps[circle.index * 4 + 1] - circleProps[circle.index * 4 + 2] <=
+      -borderSize
+    ) {
+      circleProps[circle.index * 4 + 1] = Math.max(
+        -borderSize + circleProps[circle.index * 4 + 2],
+        circleProps[circle.index * 4 + 1]
+      );
+      circle.vel[1] = Math.abs(circle.vel[1]);
+    }
+  });
 }
 
 function getAspectRatio() {
@@ -395,7 +504,13 @@ function hideText(delay = 0) {
   setTimeout(() => (textBox.style.opacity = "0.0"), delay);
 }
 
-interface Circle {
+interface OtherCircle {
+  index: number;
+  vel: Float32Array;
+  animation: Animation;
+}
+
+interface PlayerCircle {
   props: Float32Array;
   vel: Float32Array;
   animation: Animation;
@@ -438,4 +553,12 @@ function easeOutBack(x: number): number {
   const c3 = c1 + 1;
 
   return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
+}
+
+function randomFloatBetween(min: number, max: number) {
+  return Math.random() * (max - min) + min;
+}
+
+function randomSign(): number {
+  return Math.random() < 0.5 ? -1 : 1;
 }
