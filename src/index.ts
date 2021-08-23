@@ -39,7 +39,7 @@ let MIN_CIRCLE_START_VEL = 0.001;
 let MAX_CIRCLE_START_VEL = 0.002;
 
 // let currentSize = 0.1;
-let borderSize = 1.0;
+let borderSize = 2.0;
 
 const gameState: GameState = {
   started: false,
@@ -352,19 +352,36 @@ function tick(t: number) {
     const r = circleProps[i + 2];
     if (r === 0.0) continue;
 
-    if (checkCircleIntersection(x, y, 0.05)) {
+    if (
+      checkCircleIntersection(
+        player.props[0],
+        player.props[1],
+        player.props[2],
+        x,
+        y,
+        r
+      )
+    ) {
       playSoundBankFunction("absorb", playAbsorbChord);
     } else {
       stopSoundBankFunction("absorb");
     }
 
-    if (checkCircleAbsorption(x, y, 0.025)) {
+    if (
+      checkCircleAbsorption(
+        player.props[0],
+        player.props[1],
+        player.props[2],
+        x,
+        y,
+        r
+      )
+    ) {
       playSoundBankFunction("absorbed", playAbsorbedChord);
 
       player.animation.startTime = t;
       player.animation.endTime = t + GROW_TIME;
       player.animation.startValue = player.props[2];
-      // player.props[2] += 0.1;
       player.props[2] += circleProps[i + 2] / 2;
       circleProps[i + 2] = 0;
       player.animation.endValue = player.props[2];
@@ -391,10 +408,17 @@ function stopSoundBankFunction(soundBankKey, time = 0) {
   }
 }
 
-function checkCircleIntersection(x: number, y: number, r: number): boolean {
-  const difference = Math.abs(0.1 - r);
-  const sum = Math.abs(0.1 + r);
-  const d = distanceBetweenCircles(x, y);
+function checkCircleIntersection(
+  x1: number,
+  y1: number,
+  r1: number,
+  x2: number,
+  y2: number,
+  r2: number
+): boolean {
+  const difference = Math.abs(r1 - r2);
+  const sum = r1 + r2;
+  const d = distanceBetweenCircles(x1, y1, x2, y2);
   return difference <= d && d <= sum;
 }
 
@@ -402,13 +426,25 @@ function distance(x1: number, y1: number, x2: number, y2: number): number {
   return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
 }
 
-function distanceBetweenCircles(x: number, y: number): number {
-  return distance(player.props[0], player.props[1], x, y);
+function distanceBetweenCircles(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number
+): number {
+  return distance(x1, y1, x2, y2);
 }
 
-function checkCircleAbsorption(x: number, y: number, r: number): boolean {
-  const d = distanceBetweenCircles(x, y);
-  return 0.1 > 0.025 + d;
+function checkCircleAbsorption(
+  x1: number,
+  y1: number,
+  r1: number,
+  x2: number,
+  y2: number,
+  r2: number
+): boolean {
+  const d = distanceBetweenCircles(x1, y1, x2, y2);
+  return r1 > r2 + d;
 }
 
 function updateCircles(t: number) {

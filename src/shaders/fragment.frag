@@ -141,10 +141,10 @@ vec3 pal( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d )
 }
 
 void main() {
-  vec2 st = (gl_FragCoord.xy - .5 * uRes) / min(uRes.x, uRes.y);
+  float zoom = max(log(uPlayerProps.z/.1),1.); // zoom based on the player's size
+  vec2 st = (gl_FragCoord.xy - .5 * uRes) / min(uRes.x, uRes.y) * zoom;
   float distortedT =  abs(cos(sin((st.x+st.y*5.)+uTime/1000.0))) + atan(st.x * st.y);
   float t = mod(uTime / 10000.0, 100000.);
-  // float t = uTime / 10000.0;
   vec4 colorInside = vec4(pal(distortedT, vec3(0.025,0.025,0.1),vec3(0.025,0.025,0.1),vec3(1.0,1.0,1.0),vec3(0.0,0.1,0.2)), 1.);
   vec4 colorOutside = vec4(pal(distortedT, vec3(0.5,0.5,1.0),vec3(0.5,0.5,1.0),vec3(0.5,0.5,1.0),vec3(0.4,0.3,0.2)), 1.);
   vec4 color = colorInside;
