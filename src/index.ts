@@ -32,14 +32,14 @@ const MIN_VEL_THRESHOLD = 0.00015;
 const GROW_TIME = 500;
 const GROW_SIZE = 0.1;
 const circles: Array<OtherCircle> = [];
-let NUM_CIRCLES = 5;
-let MIN_CIRCLE_SIZE = 0.025;
-let MAX_CIRCLE_SIZE = 0.025;
+let NUM_CIRCLES = 25;
+let MIN_CIRCLE_SIZE = 0.01;
+let MAX_CIRCLE_SIZE = 0.1;
 let MIN_CIRCLE_START_VEL = 0.001;
-let MAX_CIRCLE_START_VEL = 0.004;
+let MAX_CIRCLE_START_VEL = 0.002;
 
 // let currentSize = 0.1;
-let borderSize = 1.5;
+let borderSize = 1.0;
 
 const gameState: GameState = {
   started: false,
@@ -75,7 +75,6 @@ const player: PlayerCircle = {
   },
 };
 
-// TODO: delete?
 const camera: Camera = {
   props: new Float32Array([0.0, 0.0, 0.0, 0.0]),
 };
@@ -123,15 +122,6 @@ for (let i = 0; i < NUM_CIRCLES; i++) {
     },
   });
 }
-
-// console.log(circles);
-// console.log(JSON.stringify(circleProps));
-
-// const circleProps = new Float32Array([
-//  .45, .45, .025, 0.0,
-//  .9,  .9 , .025, 0.0,
-//  -circleStartX, -0.0, 0.025, 0.0
-// ]);
 
 // prettier-ignore
 const squarePositions = new Float32Array([
@@ -269,6 +259,7 @@ function hideTitle() {
   }
 }
 
+let tock = 0;
 function tick(t: number) {
   requestAnimationFrame(tick);
 
@@ -343,6 +334,9 @@ function tick(t: number) {
   ctx.uniform1f(programInfo.uniforms.uBorder, borderSize);
 
   //////////////// circle props
+  // ctx.uniform1i(programInfo.uniforms.uNumCircles, NUM_CIRCLES);
+
+  // Updating this at 60ps was killing perf on mobile...
   ctx.uniform4fv(programInfo.uniforms.uCircleProps, circleProps);
 
   //////////////// time
@@ -352,31 +346,32 @@ function tick(t: number) {
   ctx.drawArrays(ctx.TRIANGLES, 0, 6);
 
   // absorb bubbles
-  // for (let i = 0; i < circleProps.length; i += 4) {
-  //   const x = circleProps[i];
-  //   const y = circleProps[i + 1];
-  //   const r = circleProps[i + 2];
-  //   if (r === 0.0) continue;
+  for (let i = 0; i < circleProps.length; i += 4) {
+    const x = circleProps[i];
+    const y = circleProps[i + 1];
+    const r = circleProps[i + 2];
+    if (r === 0.0) continue;
 
-  //   if (checkCircleIntersection(x, y, 0.05)) {
-  //     playSoundBankFunction("absorb", playAbsorbChord);
-  //   } else {
-  //     stopSoundBankFunction("absorb");
-  //   }
+    if (checkCircleIntersection(x, y, 0.05)) {
+      playSoundBankFunction("absorb", playAbsorbChord);
+    } else {
+      stopSoundBankFunction("absorb");
+    }
 
-  //   if (checkCircleAbsorption(x, y, 0.025)) {
-  //     playSoundBankFunction("absorbed", playAbsorbedChord);
-  //     circleProps[i + 2] = 0;
+    if (checkCircleAbsorption(x, y, 0.025)) {
+      playSoundBankFunction("absorbed", playAbsorbedChord);
 
-  //     player.animation.startTime = t;
-  //     player.animation.endTime = t + GROW_TIME;
-  //     player.animation.startValue = player.props[2];
-  //     player.props[2] += 0.1;
-  //     player.animation.endValue = player.props[2];
-  //   } else {
-  //     stopSoundBankFunction("absorbed", 2);
-  //   }
-  // }
+      player.animation.startTime = t;
+      player.animation.endTime = t + GROW_TIME;
+      player.animation.startValue = player.props[2];
+      // player.props[2] += 0.1;
+      player.props[2] += circleProps[i + 2] / 2;
+      circleProps[i + 2] = 0;
+      player.animation.endValue = player.props[2];
+    } else {
+      stopSoundBankFunction("absorbed", 2);
+    }
+  }
 }
 
 requestAnimationFrame(tick);
@@ -417,14 +412,11 @@ function checkCircleAbsorption(x: number, y: number, r: number): boolean {
 }
 
 function updateCircles(t: number) {
-  // circleProps[4] = circleStartX + Math.sin(t / 1000.0) / 2;
+  for (let i = 0; i < circles.length; i++) {
+    const circle = circles[i];
 
-  circles.forEach((circle) => {
     circle.vel[0] = clamp(circle.vel[0], -MAX_VEL, MAX_VEL);
     circle.vel[1] = clamp(circle.vel[1], -MAX_VEL, MAX_VEL);
-    // circle.vel[1] = Math.sign(circle.vel[1]) * Math.abs(circle.vel[1]);
-
-    // console.log(circle.vel);
 
     circle.vel[1] = clamp(circle.vel[1], -MAX_VEL, MAX_VEL);
 
@@ -478,7 +470,7 @@ function updateCircles(t: number) {
       );
       circle.vel[1] = Math.abs(circle.vel[1]);
     }
-  });
+  }
 }
 
 function getAspectRatio() {
@@ -534,6 +526,7 @@ interface GameProgramCache extends ProgramCache {
     uPlayerProps: WebGLUniformLocation | null;
     uCircleProps: WebGLUniformLocation | null;
     uCameraProps: WebGLUniformLocation | null;
+    // uNumCircles: WebGLUniformLocation | null;
     uTime: WebGLUniformLocation | null;
     uBorder: WebGLUniformLocation | null;
   };

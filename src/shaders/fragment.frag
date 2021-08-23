@@ -1,9 +1,10 @@
 #version 100
-#define NUM_CIRCLES 5
+#define NUM_CIRCLES 25
 #define PI 3.14159
 #define NUM_LAYERS 3.
 
 precision highp float;
+precision highp int;
 
 uniform vec2 uRes;
 uniform vec4 uPlayerProps;
@@ -21,70 +22,9 @@ float circleDist(vec2 p, float radius) {
   return length(p) - radius;
 }
 
-float msign(in float x) { return (x<0.0)?-1.0:1.0; }
-
-// https://www.iquilezles.org/www/articles/distfunctions2d/distfunctions2d.htm
-float sdEllipse( vec2 p, in vec2 ab )
-{
-  if( ab.x==ab.y ) return length(p)-ab.x;
-
-	p = abs( p );
-    if( p.x>p.y ){ p=p.yx; ab=ab.yx; }
-
-	float l = ab.y*ab.y - ab.x*ab.x;
-
-  float m = ab.x*p.x/l;
-	float n = ab.y*p.y/l;
-	float m2 = m*m;
-	float n2 = n*n;
-
-    float c = (m2+n2-1.0)/3.0;
-	float c3 = c*c*c;
-
-    float d = c3 + m2*n2;
-    float q = d  + m2*n2;
-    float g = m  + m *n2;
-
-    float co;
-
-    if( d<0.0 )
-    {
-        float h = acos(q/c3)/3.0;
-        float s = cos(h) + 2.0;
-        float t = sin(h) * sqrt(3.0);
-        float rx = sqrt( m2-c*(s+t) );
-        float ry = sqrt( m2-c*(s-t) );
-        co = ry + sign(l)*rx + abs(g)/(rx*ry);
-    }
-    else
-    {
-        float h = 2.0*m*n*sqrt(d);
-        float s = msign(q+h)*pow( abs(q+h), 1.0/3.0 );
-        float t = msign(q-h)*pow( abs(q-h), 1.0/3.0 );
-        float rx = -(s+t) - c*4.0 + 2.0*m2;
-        float ry =  (s-t)*sqrt(3.0);
-        float rm = sqrt( rx*rx + ry*ry );
-        co = ry/sqrt(rm-rx) + 2.0*g/rm;
-    }
-    co = (co-m)/2.0;
-
-    float si = sqrt( max(1.0-co*co,0.0) );
-
-    vec2 r = ab * vec2(co,si);
-
-    return length(r-p) * msign(p.y-r.y);
-}
-
-
 mat2 rot(float a) {
     float s=sin(a), c=cos(a);
     return mat2(c, -s, s, c);
-}
-
-float hash21(vec2 p) {
-    p = fract(p*vec2(123.34, 456.21));
-    p += dot(p, p+45.32);
-    return fract(p.x*p.y);
 }
 
 float rand(vec2 co){
@@ -122,7 +62,6 @@ vec3 starLayer(vec2 uv) {
       float size = fract(n*345.21);
       float d = starDist(gv- offset-vec2(n,fract(n*10.)-.5), smoothstep(.9,1.0, size)*.6);
 
-
       vec3 color = sin(vec3(.2,.3,.9)*fract(n*2345.6)*PI*4.)*.5+.5;
       color = color*vec3(1.,0.5,1.+size);
 
@@ -157,18 +96,8 @@ float fill(float x, float size) {
   return step(size, x);
 }
 
-float flip(float v, float pct) {
-  return mix(v, 1.-v, pct);
-}
-
 float lerp(float x1, float x2, float t) {
 	return x1 * (1.0- t) + x2*t;
-}
-
-// substracts shape d1 from shape d2
-float opS( float d1, float d2 )
-{
-    return max(-d1,d2);
 }
 
 float intersect(float shape1, float shape2){
@@ -177,10 +106,6 @@ float intersect(float shape1, float shape2){
 
 float merge(float shape1, float shape2){
     return min(shape1, shape2);
-}
-
-float interpolate(float shape1, float shape2, float amount){
-  return lerp(shape1, shape2, amount);
 }
 
 float stroke(float x, float w) {
@@ -198,11 +123,13 @@ float strokeBoth(float x, float w, float fuzz) {
   return merge(d,d2);
 }
 
+// https://www.iquilezles.org/www/articles/smin/smin.htm
 float smin( float a, float b, float k )
 {
-    float h = clamp( 0.5+0.5*(b-a)/k, 0.0, 1.0 );
-    return mix( b, a, h ) - k*h*(1.0-h);
+    float h = max( k-abs(a-b), 0.0 )/k;
+    return min( a, b ) - h*h*k*(1.0/4.0);
 }
+
 
 vec4 colorCircle(vec4 _color, float _d) {
   return mix(vec4(1.0), _color, _d);
@@ -223,7 +150,7 @@ void main() {
   vec4 color = colorInside;
 
   // Draw player
-  float d = sdEllipse(st, vec2(uPlayerProps.z, uPlayerProps.z));
+  float d = circleDist(st, uPlayerProps.z);
 
   // Draw borders
   float top = smoothstep(uBorder - WALL_FUZZ, uBorder + WALL_FUZZ, (st + uCameraProps.xy).y);
@@ -250,8 +177,7 @@ void main() {
   // Draw circles
   for (int i = 0; i < NUM_CIRCLES; i++) {
     if (uCircleProps[i].z <= 0.0) continue;
-    // float d2 = circleDist(uCircleProps[i].xy - st - uCameraProps.xy, uCircleProps[i].z);
-    float d2 = sdEllipse(uCircleProps[i].xy - st - uCameraProps.xy, vec2(uCircleProps[i].z));
+    float d2 = circleDist(uCircleProps[i].xy - st - uCameraProps.xy, uCircleProps[i].z);
     d = smin(d2, d, BEND2);
   }
 
