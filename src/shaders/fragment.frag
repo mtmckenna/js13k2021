@@ -1,7 +1,7 @@
 #version 100
 #define NUM_CIRCLES 5
 #define PI 3.14159
-#define NUM_LAYERS 3.0
+#define NUM_LAYERS 3.
 
 precision highp float;
 
@@ -87,6 +87,9 @@ float hash21(vec2 p) {
     return fract(p.x*p.y);
 }
 
+float rand(vec2 co){
+    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+}
 
 // https://www.youtube.com/watch?v=rvDo9LvfoVE
 float starDist(vec2 uv, float flare) {
@@ -101,38 +104,35 @@ float starDist(vec2 uv, float flare) {
     m *= smoothstep(0.75, .2, d);
 
     return m;
+    // return 0.0;
 }
 
 vec3 starLayer(vec2 uv) {
-    vec3 col = vec3(0);
+  vec3 col = vec3(0);
 
-    vec2 gv = fract(uv)-.5;
-    vec2 id = floor(uv);
+  vec2 gv = fract(uv)-.5;
+  vec2 id = floor(uv);
 
-    float t = uTime / 1000.0;
+  float t = uTime / 1000.0;
 
-    for (int y=-1; y<=1;y++) {
-        for (int x=-1; x<=1;x++) {
-            vec2 offset = vec2(x, y);
-            float n = hash21(id + offset);
-            float size = fract(n*345.21);
-            float d = starDist(gv- offset-vec2(n,fract(n*10.)-.5), smoothstep(.9,1.0, size)*.6);
+  for (int y=-1; y<=1;y++) {
+    for (int x=-1; x<=1;x++) {
+      vec2 offset = vec2(x, y);
+      float n = rand(id + offset);
+      float size = fract(n*345.21);
+      float d = starDist(gv- offset-vec2(n,fract(n*10.)-.5), smoothstep(.9,1.0, size)*.6);
 
 
-            vec3 color = sin(vec3(.2,.3,.9)*fract(n*2345.6)*PI*4.)*.5+.5;
-            color = color*vec3(1.,0.5,1.+size);
+      vec3 color = sin(vec3(.2,.3,.9)*fract(n*2345.6)*PI*4.)*.5+.5;
+      color = color*vec3(1.,0.5,1.+size);
 
-            d *= sin(t*3.+n*PI*2.)*.5+1.;
-            col += d*size * color;
-        }
+      d *= sin(t*3.+n*PI*2.)*.5+1.;
+      col += d*size * color;
     }
+  }
 
 //     if (gv.x >.48 || gv.y > .48) col.r =1.;
-    return col;
-}
-
-float rand(vec2 co){
-    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+  return col;
 }
 
 float sdRoundedBox( in vec2 p, in vec2 b, in vec4 r )
@@ -216,7 +216,8 @@ vec3 pal( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d )
 void main() {
   vec2 st = (gl_FragCoord.xy - .5 * uRes) / min(uRes.x, uRes.y);
   float distortedT =  abs(cos(sin((st.x+st.y*5.)+uTime/1000.0))) + atan(st.x * st.y);
-  float t = uTime / 10000.0;
+  float t = mod(uTime / 10000.0, 100000.);
+  // float t = uTime / 10000.0;
   vec4 colorInside = vec4(pal(distortedT, vec3(0.025,0.025,0.1),vec3(0.025,0.025,0.1),vec3(1.0,1.0,1.0),vec3(0.0,0.1,0.2)), 1.);
   vec4 colorOutside = vec4(pal(distortedT, vec3(0.5,0.5,1.0),vec3(0.5,0.5,1.0),vec3(0.5,0.5,1.0),vec3(0.4,0.3,0.2)), 1.);
   vec4 color = colorInside;
@@ -258,11 +259,9 @@ void main() {
   for (float i = 0.; i< 1.; i += 1./NUM_LAYERS) {
         vec2 uv2 = vec2(st);
 
-        float depth = fract(i);
-        float scale = mix(20.,.5, depth);
-        float fade = depth * smoothstep(1.0, .9, depth);
+        float scale = mix(10.,0.5, i);
         uv2 += uCameraProps.xy * i;
-        color += vec4(starLayer(uv2 * scale + i*500.)* fade,1.);
+        color += vec4(starLayer(uv2 * scale + i*25.),1.);
     }
 
   color = colorCircle(color, strokeBoth(d, .01, CIRCLE_FUZZ));

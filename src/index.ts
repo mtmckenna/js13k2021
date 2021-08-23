@@ -23,8 +23,8 @@ import { inputState, addEventListeners } from "./input";
 
 const canvas: HTMLCanvasElement = document.createElement("canvas");
 const ctx = canvas.getContext("webgl");
-const width = 1024;
-const height = 1024;
+const width = 800;
+const height = 600;
 const MOVING_SPEED = 0.003;
 const MAX_VEL = MOVING_SPEED * 2;
 const FRICTION = 0.96;
