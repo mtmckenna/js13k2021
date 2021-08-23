@@ -39,7 +39,7 @@ let MIN_CIRCLE_START_VEL = 0.001;
 let MAX_CIRCLE_START_VEL = 0.004;
 
 // let currentSize = 0.1;
-let borderSize = 0.5;
+let borderSize = 1.5;
 
 const gameState: GameState = {
   started: false,

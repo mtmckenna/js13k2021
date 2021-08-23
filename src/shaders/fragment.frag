@@ -1,5 +1,7 @@
 #version 100
 #define NUM_CIRCLES 5
+#define PI 3.14159
+#define NUM_LAYERS 3.0
 
 precision highp float;
 
@@ -26,17 +28,17 @@ float sdEllipse( vec2 p, in vec2 ab )
 {
   if( ab.x==ab.y ) return length(p)-ab.x;
 
-	p = abs( p ); 
+	p = abs( p );
     if( p.x>p.y ){ p=p.yx; ab=ab.yx; }
-	
+
 	float l = ab.y*ab.y - ab.x*ab.x;
-	
-  float m = ab.x*p.x/l; 
-	float n = ab.y*p.y/l; 
+
+  float m = ab.x*p.x/l;
+	float n = ab.y*p.y/l;
 	float m2 = m*m;
 	float n2 = n*n;
-	
-    float c = (m2+n2-1.0)/3.0; 
+
+    float c = (m2+n2-1.0)/3.0;
 	float c3 = c*c*c;
 
     float d = c3 + m2*n2;
@@ -67,12 +69,67 @@ float sdEllipse( vec2 p, in vec2 ab )
     co = (co-m)/2.0;
 
     float si = sqrt( max(1.0-co*co,0.0) );
- 
+
     vec2 r = ab * vec2(co,si);
-	
+
     return length(r-p) * msign(p.y-r.y);
 }
 
+
+mat2 rot(float a) {
+    float s=sin(a), c=cos(a);
+    return mat2(c, -s, s, c);
+}
+
+float hash21(vec2 p) {
+    p = fract(p*vec2(123.34, 456.21));
+    p += dot(p, p+45.32);
+    return fract(p.x*p.y);
+}
+
+
+// https://www.youtube.com/watch?v=rvDo9LvfoVE
+float starDist(vec2 uv, float flare) {
+    float d = length(uv);
+    float m = .05/d;
+    float rays = max(0.,1.-abs(uv.x * uv.y * 1000.));
+
+    m += rays * flare;
+    uv *= rot(PI / 4.0);
+    rays = max(0.,1.-abs(uv.x * uv.y * 1000.));
+    m += rays * .3 * flare;
+    m *= smoothstep(0.75, .2, d);
+
+    return m;
+}
+
+vec3 starLayer(vec2 uv) {
+    vec3 col = vec3(0);
+
+    vec2 gv = fract(uv)-.5;
+    vec2 id = floor(uv);
+
+    float t = uTime / 1000.0;
+
+    for (int y=-1; y<=1;y++) {
+        for (int x=-1; x<=1;x++) {
+            vec2 offset = vec2(x, y);
+            float n = hash21(id + offset);
+            float size = fract(n*345.21);
+            float d = starDist(gv- offset-vec2(n,fract(n*10.)-.5), smoothstep(.9,1.0, size)*.6);
+
+
+            vec3 color = sin(vec3(.2,.3,.9)*fract(n*2345.6)*PI*4.)*.5+.5;
+            color = color*vec3(1.,0.5,1.+size);
+
+            d *= sin(t*3.+n*PI*2.)*.5+1.;
+            col += d*size * color;
+        }
+    }
+
+//     if (gv.x >.48 || gv.y > .48) col.r =1.;
+    return col;
+}
 
 float rand(vec2 co){
     return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
@@ -139,7 +196,7 @@ float strokeBoth(float x, float w, float fuzz) {
   d2 = clamp(d2, 0.0, 1.0);
 
   return merge(d,d2);
-} 
+}
 
 float smin( float a, float b, float k )
 {
@@ -158,11 +215,16 @@ vec3 pal( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d )
 
 void main() {
   vec2 st = (gl_FragCoord.xy - .5 * uRes) / min(uRes.x, uRes.y);
-  float t =  abs(cos(sin((st.x+st.y*5.)+uTime/1000.0))) + atan(st.x * st.y);
-  vec4 colorInside = vec4(pal(t, vec3(0.025,0.025,0.1),vec3(0.025,0.025,0.1),vec3(1.0,1.0,1.0),vec3(0.0,0.1,0.2)), 1.);
-  vec4 colorOutside = vec4(pal(t, vec3(0.5,0.5,1.0),vec3(0.5,0.5,1.0),vec3(0.5,0.5,1.0),vec3(0.4,0.3,0.2)), 1.);
+  float distortedT =  abs(cos(sin((st.x+st.y*5.)+uTime/1000.0))) + atan(st.x * st.y);
+  float t = uTime / 10000.0;
+  vec4 colorInside = vec4(pal(distortedT, vec3(0.025,0.025,0.1),vec3(0.025,0.025,0.1),vec3(1.0,1.0,1.0),vec3(0.0,0.1,0.2)), 1.);
+  vec4 colorOutside = vec4(pal(distortedT, vec3(0.5,0.5,1.0),vec3(0.5,0.5,1.0),vec3(0.5,0.5,1.0),vec3(0.4,0.3,0.2)), 1.);
   vec4 color = colorInside;
 
+  // Draw player
+  float d = sdEllipse(st, vec2(uPlayerProps.z, uPlayerProps.z));
+
+  // Draw borders
   float top = smoothstep(uBorder - WALL_FUZZ, uBorder + WALL_FUZZ, (st + uCameraProps.xy).y);
   float right = smoothstep(uBorder - WALL_FUZZ, uBorder + WALL_FUZZ, (st + uCameraProps.xy).x);
   float bottom = smoothstep(-uBorder - WALL_FUZZ, -uBorder + WALL_FUZZ, (st + uCameraProps.xy).y);
@@ -173,10 +235,6 @@ void main() {
   color = mix(colorOutside, color, bottom);
   color = mix(colorOutside, color, left);
 
-  // float d = circleDist(st, uPlayerProps.z);
-  // float d = sdEllipse(st, vec2(uPlayerProps.z, uPlayerProps.z+.001));
-  float d = sdEllipse(st, vec2(uPlayerProps.z, uPlayerProps.z));
-  
   float dBoxT = sdBox(vec2(0.0,  uBorder) -st - uCameraProps.xy, vec2(uBorder, .00001));
   float dBoxR = sdBox(vec2(uBorder,  0.0) -st - uCameraProps.xy, vec2(.00001, uBorder));
   float dBoxB = sdBox(vec2(0.0, -uBorder) -st - uCameraProps.xy, vec2(uBorder, .00001));
@@ -185,17 +243,27 @@ void main() {
   float dBox = smin(dBoxT, dBoxR, BEND);
   dBox = smin(dBox, dBoxB, BEND);
   dBox = smin(dBox, dBoxL, BEND);
+
   d = smin(d, dBox, BEND2);
 
+  // Draw circles
   for (int i = 0; i < NUM_CIRCLES; i++) {
-    if (uCircleProps[i].z <= 0.0) continue; 
+    if (uCircleProps[i].z <= 0.0) continue;
     // float d2 = circleDist(uCircleProps[i].xy - st - uCameraProps.xy, uCircleProps[i].z);
     float d2 = sdEllipse(uCircleProps[i].xy - st - uCameraProps.xy, vec2(uCircleProps[i].z));
     d = smin(d2, d, BEND2);
   }
 
-  // float outside = fill(sdBox(-st - uCameraProps.xy, vec2(uBorder - .1)),0.1);
-  float outside = smoothFill(sdBox(-st - uCameraProps.xy, vec2(uBorder - .1)),0.1,.1);
+  // Draw star layers
+  for (float i = 0.; i< 1.; i += 1./NUM_LAYERS) {
+        vec2 uv2 = vec2(st);
+
+        float depth = fract(i);
+        float scale = mix(20.,.5, depth);
+        float fade = depth * smoothstep(1.0, .9, depth);
+        uv2 += uCameraProps.xy * i;
+        color += vec4(starLayer(uv2 * scale + i*500.)* fade,1.);
+    }
 
   color = colorCircle(color, strokeBoth(d, .01, CIRCLE_FUZZ));
 
