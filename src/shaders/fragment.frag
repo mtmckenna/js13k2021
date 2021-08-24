@@ -1,5 +1,5 @@
 #version 100
-#define NUM_CIRCLES 25
+#define NUM_CIRCLES 50
 #define PI 3.14159
 #define NUM_LAYERS 3.
 
@@ -34,17 +34,18 @@ float rand(vec2 co){
 // https://www.youtube.com/watch?v=rvDo9LvfoVE
 float starDist(vec2 uv, float flare) {
     float d = length(uv);
-    float m = .05/d;
-    float rays = max(0.,1.-abs(uv.x * uv.y * 1000.));
+    float m = .02/d;
+    // float rays = max(0.,1.-abs(uv.x * uv.y * 1000.));
+    // float rays = 1.-abs(uv.x * uv.y * 1000.);
 
-    m += rays * flare;
-    uv *= rot(PI / 4.0);
-    rays = max(0.,1.-abs(uv.x * uv.y * 1000.));
-    m += rays * .3 * flare;
-    m *= smoothstep(0.75, .2, d);
+    // m += rays * flare;
+    // uv *= rot(PI / 4.0);
+    // rays = max(0.,1.-abs(uv.x * uv.y * 1000.));
+    // rays = 1.-abs(uv.x * uv.y * 1000.);
+    // m += rays * .3 * flare;
+    m *= smoothstep(1., .2, d);
 
     return m;
-    // return 0.0;
 }
 
 vec3 starLayer(vec2 uv) {
