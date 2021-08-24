@@ -41,13 +41,13 @@ window.addEventListener("keyup", (e: KeyboardEvent) => {
 });
 
 export function addEventListeners(element: HTMLElement) {
-  element.addEventListener("mousedown", inputPressed, false);
+  element.addEventListener("mousedown", mousePressed, false);
   element.addEventListener("mousemove", mouseMoved, false);
   element.addEventListener("mouseup", inputReleased, false);
 
-  element.addEventListener("touchstart", inputPressed, { passive: false });
+  element.addEventListener("touchstart", touchPressed, { passive: false });
   element.addEventListener("touchend", inputReleased, { passive: false });
-  element.addEventListener("touchmove", inputMoved, { passive: false });
+  element.addEventListener("touchmove", touchMoved, { passive: false });
   element.addEventListener("touchcancel", preventDefault, { passive: false });
 }
 
@@ -59,21 +59,26 @@ export const inputState: InputState = {
   s: false,
 };
 
-function inputPressed(e: MouseEvent | TouchEvent) {
+function touchPressed(e: TouchEvent) {
   e.preventDefault();
-  let x: number = null;
-  let y: number = null;
 
-  if (e instanceof TouchEvent) {
-    x = e.changedTouches[0].clientX;
-    y = e.changedTouches[0].clientY;
-  } else {
-    x = e.clientX;
-    y = e.clientY;
-  }
+  const x = e.changedTouches[0].clientX;
+  const y = e.changedTouches[0].clientY;
 
-  x = x / window.innerWidth - 0.5;
-  y = y / window.innerHeight - 0.5;
+  inputPressed(x, y);
+}
+
+function mousePressed(e: MouseEvent) {
+  e.preventDefault();
+
+  const x = e.clientX;
+  const y = e.clientY;
+  inputPressed(x, y);
+}
+
+function inputPressed(xInput: number, yInput: number) {
+  let x = xInput / window.innerWidth - 0.5;
+  let y = yInput / window.innerHeight - 0.5;
   const MIN_INPUT = 0.01;
 
   if (Math.abs(x) > MIN_INPUT && x > 0) {
@@ -91,8 +96,6 @@ function inputPressed(e: MouseEvent | TouchEvent) {
   if (Math.abs(y) > MIN_INPUT && y < 0) {
     inputState.down = true;
   }
-
-  // console.log(x, y);
 }
 
 function inputReleased(e: MouseEvent | TouchEvent) {
@@ -107,12 +110,12 @@ function inputReleased(e: MouseEvent | TouchEvent) {
 function mouseMoved(e: MouseEvent) {
   if (!anyInputPressed()) return;
   inputReleased(e);
-  inputPressed(e);
+  mousePressed(e);
 }
 
-function inputMoved(e: MouseEvent | TouchEvent) {
+function touchMoved(e: TouchEvent) {
   inputReleased(e);
-  inputPressed(e);
+  touchPressed(e);
 }
 
 function preventDefault(e: TouchEvent) {
