@@ -241,69 +241,74 @@ function hideTitle() {
   }
 }
 
-let tock = 0;
 function tick(t: number) {
   requestAnimationFrame(tick);
-
   hideTitle();
-
   handleInput();
   updateCircles(t);
   playAudio();
-
   updateCameraPosition();
-
   checkCollisions(t);
-
   draw(t);
 }
 
 requestAnimationFrame(tick);
 
 function checkCollisions(t: number) {
-  // absorb bubbles
+  // Cache collision checks?
   for (let i = 0; i < circleProps.length; i += 4) {
-    const x = circleProps[i];
-    const y = circleProps[i + 1];
-    const r = circleProps[i + 2];
-    if (r === 0.0) continue;
+    const iCircle = i / 4;
+    for (let j = i + 4; j < circleProps.length; j += 4) {
+      const jCircle = j / 4;
+      const x1 = circleProps[i];
+      const y1 = circleProps[i + 1];
+      const r1 = circleProps[i + 2];
+      const x2 = circleProps[j];
+      const y2 = circleProps[j + 1];
+      const r2 = circleProps[j + 2];
 
-    const pIndex = player.index;
-    if (
-      checkCircleIntersection(
-        circleProps[pIndex + 0],
-        circleProps[pIndex + 1],
-        circleProps[pIndex + 2],
-        x,
-        y,
-        r
-      )
-    ) {
-      playSoundBankFunction("absorb", playAbsorbChord);
-    } else {
-      stopSoundBankFunction("absorb");
-    }
+      if (r1 === 0.0 || r2 === 0.0) continue;
 
-    if (
-      checkCircleAbsorption(
-        circleProps[pIndex + 0],
-        circleProps[pIndex + 1],
-        circleProps[pIndex + 2],
-        x,
-        y,
-        r
-      )
-    ) {
-      playSoundBankFunction("absorbed", playAbsorbedChord);
+      const intersects = checkCircleIntersection(x1, y1, r1, x2, y2, r2);
+      // if (intersects) {
+      //   playSoundBankFunction("absorb", playAbsorbChord);
+      // } else {
+      //   stopSoundBankFunction("absorb");
+      // }
 
-      player.animation.startTime = t;
-      player.animation.endTime = t + GROW_TIME;
-      player.animation.startValue = circleProps[pIndex + 2];
-      circleProps[pIndex + 2] += circleProps[i + 2] / 2;
-      circleProps[i + 2] = 0;
-      player.animation.endValue = circleProps[pIndex + 2];
-    } else {
-      stopSoundBankFunction("absorbed", 2);
+      let absorbed = false;
+      let absorberIndex: number = null;
+      let absorbeeIndex: number = null;
+      let absorberIndexProps: number = null;
+      let absorbeeIndexProps: number = null;
+
+      if (r1 > r2) {
+        absorbed = checkCircleAbsorption(x1, y1, r1, x2, y2, r2);
+        absorberIndex = iCircle;
+        absorbeeIndex = jCircle;
+        absorberIndexProps = i;
+        absorbeeIndexProps = j;
+      } else if (r2 > r1) {
+        absorbed = checkCircleAbsorption(x2, y2, r2, x1, y1, r1);
+        absorberIndex = jCircle;
+        absorbeeIndex = iCircle;
+        absorberIndexProps = j;
+        absorbeeIndexProps = i;
+      }
+
+      if (absorbed) {
+        circles[absorberIndex].animation.startTime = t;
+        circles[absorberIndex].animation.endTime = t + GROW_TIME;
+        circles[absorberIndex].animation.startValue =
+          circleProps[absorberIndexProps + 2];
+        circleProps[absorberIndexProps + 2] +=
+          circleProps[absorbeeIndexProps + 2] / 2;
+        circleProps[absorbeeIndexProps + 2] = 0;
+        circles[absorberIndex].animation.endValue =
+          circleProps[absorberIndexProps + 2];
+      } else {
+        // stopSoundBankFunction("absorbed", 2);
+      }
     }
   }
 }
