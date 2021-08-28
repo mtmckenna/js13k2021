@@ -31,7 +31,7 @@ const FRICTION = 0.96;
 const MIN_VEL_THRESHOLD = 0.00015;
 const GROW_TIME = 500;
 const GROW_SIZE = 0.1;
-const circles: Array<OtherCircle> = [];
+const circles: Array<Circle> = [];
 let NUM_CIRCLES = 50;
 let MIN_CIRCLE_SIZE = 0.01;
 let MAX_CIRCLE_SIZE = 0.1;
@@ -63,8 +63,9 @@ const res = new Float32Array([canvas.width, canvas.height]);
 
 const START_SIZE = 0.1;
 
-const player: PlayerCircle = {
-  props: new Float32Array([0.0, 0.0, START_SIZE, 0.0]),
+const initialPlayerProps = [0.0, 0.0, START_SIZE, 0.0];
+const player: Circle = {
+  index: 0,
   vel: new Float32Array([0.0, 0.0]),
   animation: {
     startTime: 0,
@@ -86,8 +87,10 @@ const soundBank: { [key: string]: Sound | null } = {
 };
 
 let circleProps = new Float32Array(NUM_CIRCLES * 4);
+circleProps.set(initialPlayerProps, 0);
 
-for (let i = 0; i < NUM_CIRCLES; i++) {
+circles.push(player);
+for (let i = 1; i < NUM_CIRCLES; i++) {
   const radius = randomFloatBetween(MIN_CIRCLE_SIZE, MAX_CIRCLE_SIZE);
 
   circleProps[i * 4 + 0] = randomFloatBetween(
@@ -154,10 +157,6 @@ const programInfo: GameProgramCache = {
       program,
       FRAGMENT_SHADER.uniforms["uRes"].variableName
     ),
-    uPlayerProps: ctx.getUniformLocation(
-      program,
-      FRAGMENT_SHADER.uniforms["uPlayerProps"].variableName
-    ),
     uCircleProps: ctx.getUniformLocation(
       program,
       FRAGMENT_SHADER.uniforms["uCircleProps"].variableName
@@ -177,7 +176,7 @@ const programInfo: GameProgramCache = {
   },
 };
 
-function updatePlayerPosition() {
+function handleInput() {
   if (inputState.left) player.vel[0] -= MOVING_SPEED;
   if (inputState.right) player.vel[0] += MOVING_SPEED;
   if (inputState.up) player.vel[1] += MOVING_SPEED;
@@ -196,38 +195,11 @@ function updatePlayerPosition() {
   }
 
   player.vel[1] = clamp(player.vel[1], -MAX_VEL, MAX_VEL);
-
-  player.props[0] += player.vel[0];
-  player.props[1] += player.vel[1];
-
-  // Left border
-  if (player.props[0] - player.props[2] <= -borderSize) {
-    player.props[0] = Math.max(-borderSize + player.props[2], player.props[0]);
-    player.vel[0] = Math.abs(player.vel[0]);
-  }
-
-  // Right border
-  if (player.props[0] + player.props[2] >= borderSize) {
-    player.props[0] = Math.min(borderSize - player.props[2], player.props[0]);
-    player.vel[0] = -Math.abs(player.vel[0]);
-  }
-
-  // Top border
-  if (player.props[1] + player.props[2] >= borderSize) {
-    player.props[1] = Math.min(borderSize - player.props[2], player.props[1]);
-    player.vel[1] = -Math.abs(player.vel[1]);
-  }
-
-  // Bottom border
-  if (player.props[1] - player.props[2] <= -borderSize) {
-    player.props[1] = Math.max(-borderSize + player.props[2], player.props[1]);
-    player.vel[1] = Math.abs(player.vel[1]);
-  }
 }
 
 function updateCameraPosition() {
-  camera.props[0] = player.props[0];
-  camera.props[1] = player.props[1];
+  camera.props[0] = circleProps[player.index + 0];
+  camera.props[1] = circleProps[player.index + 1];
 
   // stop camera at border
   if (camera.props[0] < -borderSize) camera.props[0] = -borderSize;
@@ -265,9 +237,12 @@ function tick(t: number) {
 
   hideTitle();
 
-  updatePlayerPosition();
-  updateCameraPosition();
+  handleInput();
+  updateCircles(t);
   playAudio();
+
+  updateCameraPosition();
+
   if (inputState.s) {
     if (!backgroundSound) {
       console.log("BG SOUND");
@@ -277,8 +252,6 @@ function tick(t: number) {
   } else {
     // stopSoundBankFunction("move");
   }
-
-  updateCircles(t);
 
   ctx.clearColor(0.0, 0.0, 0.0, 1.0); // Clear to black, fully opaque
   ctx.clearDepth(1.0); // Clear everything
@@ -323,9 +296,7 @@ function tick(t: number) {
     );
   }
 
-  player.props[2] = player.animation.currentValue;
-
-  ctx.uniform4fv(programInfo.uniforms.uPlayerProps, player.props);
+  circleProps[player.index + 2] = player.animation.currentValue;
 
   //////////////// camera props
   ctx.uniform4fv(programInfo.uniforms.uCameraProps, camera.props);
@@ -335,8 +306,6 @@ function tick(t: number) {
 
   //////////////// circle props
   // ctx.uniform1i(programInfo.uniforms.uNumCircles, NUM_CIRCLES);
-
-  // Updating this at 60ps was killing perf on mobile...
   ctx.uniform4fv(programInfo.uniforms.uCircleProps, circleProps);
 
   //////////////// time
@@ -352,11 +321,12 @@ function tick(t: number) {
     const r = circleProps[i + 2];
     if (r === 0.0) continue;
 
+    const pIndex = player.index;
     if (
       checkCircleIntersection(
-        player.props[0],
-        player.props[1],
-        player.props[2],
+        circleProps[pIndex + 0],
+        circleProps[pIndex + 1],
+        circleProps[pIndex + 2],
         x,
         y,
         r
@@ -369,9 +339,9 @@ function tick(t: number) {
 
     if (
       checkCircleAbsorption(
-        player.props[0],
-        player.props[1],
-        player.props[2],
+        circleProps[pIndex + 0],
+        circleProps[pIndex + 1],
+        circleProps[pIndex + 2],
         x,
         y,
         r
@@ -381,10 +351,10 @@ function tick(t: number) {
 
       player.animation.startTime = t;
       player.animation.endTime = t + GROW_TIME;
-      player.animation.startValue = player.props[2];
-      player.props[2] += circleProps[i + 2] / 2;
+      player.animation.startValue = circleProps[pIndex + 2];
+      circleProps[pIndex + 2] += circleProps[i + 2] / 2;
       circleProps[i + 2] = 0;
-      player.animation.endValue = player.props[2];
+      player.animation.endValue = circleProps[pIndex + 2];
     } else {
       stopSoundBankFunction("absorbed", 2);
     }
@@ -532,14 +502,8 @@ function hideText(delay = 0) {
   setTimeout(() => (textBox.style.opacity = "0.0"), delay);
 }
 
-interface OtherCircle {
+interface Circle {
   index: number;
-  vel: Float32Array;
-  animation: Animation;
-}
-
-interface PlayerCircle {
-  props: Float32Array;
   vel: Float32Array;
   animation: Animation;
 }
@@ -559,10 +523,8 @@ interface Camera {
 interface GameProgramCache extends ProgramCache {
   uniforms: {
     uRes: WebGLUniformLocation | null;
-    uPlayerProps: WebGLUniformLocation | null;
     uCircleProps: WebGLUniformLocation | null;
     uCameraProps: WebGLUniformLocation | null;
-    // uNumCircles: WebGLUniformLocation | null;
     uTime: WebGLUniformLocation | null;
     uBorder: WebGLUniformLocation | null;
   };

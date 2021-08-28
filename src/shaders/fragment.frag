@@ -7,7 +7,6 @@ precision highp float;
 precision highp int;
 
 uniform vec2 uRes;
-uniform vec4 uPlayerProps;
 uniform vec4 uCircleProps[NUM_CIRCLES];
 uniform vec4 uCameraProps;
 uniform float uTime;
@@ -142,7 +141,7 @@ vec3 pal( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d )
 }
 
 void main() {
-  float zoom = max(log(uPlayerProps.z/.1),1.); // zoom based on the player's size
+  float zoom = max(log(uCircleProps[0].z/.1),1.); // zoom based on the player's size
   vec2 st = (gl_FragCoord.xy - .5 * uRes) / min(uRes.x, uRes.y) * zoom;
   float distortedT =  abs(cos(sin((st.x+st.y*5.)+uTime/1000.0))) + atan(st.x * st.y);
   float t = mod(uTime / 10000.0, 100000.);
@@ -151,7 +150,7 @@ void main() {
   vec4 color = colorInside;
 
   // Draw player
-  float d = circleDist(st, uPlayerProps.z);
+  float d = 99999.0;
 
   // Draw borders
   float top = smoothstep(uBorder - WALL_FUZZ, uBorder + WALL_FUZZ, (st + uCameraProps.xy).y);
