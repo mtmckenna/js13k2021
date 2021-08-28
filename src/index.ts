@@ -215,6 +215,16 @@ function playAudio() {
   } else {
     stopSoundBankFunction("move", 0.75);
   }
+
+  // if (inputState.s) {
+  //   if (!backgroundSound) {
+  //     console.log("BG SOUND");
+  //     backgroundSound = playBackground();
+  //   }
+  //   // playSoundBankFunction("move", playMoveChord);
+  // } else {
+  //   // stopSoundBankFunction("move");
+  // }
 }
 
 function hideTitle() {
@@ -243,16 +253,62 @@ function tick(t: number) {
 
   updateCameraPosition();
 
-  if (inputState.s) {
-    if (!backgroundSound) {
-      console.log("BG SOUND");
-      backgroundSound = playBackground();
-    }
-    // playSoundBankFunction("move", playMoveChord);
-  } else {
-    // stopSoundBankFunction("move");
-  }
+  checkCollisions(t);
 
+  draw(t);
+}
+
+requestAnimationFrame(tick);
+
+function checkCollisions(t: number) {
+  // absorb bubbles
+  for (let i = 0; i < circleProps.length; i += 4) {
+    const x = circleProps[i];
+    const y = circleProps[i + 1];
+    const r = circleProps[i + 2];
+    if (r === 0.0) continue;
+
+    const pIndex = player.index;
+    if (
+      checkCircleIntersection(
+        circleProps[pIndex + 0],
+        circleProps[pIndex + 1],
+        circleProps[pIndex + 2],
+        x,
+        y,
+        r
+      )
+    ) {
+      playSoundBankFunction("absorb", playAbsorbChord);
+    } else {
+      stopSoundBankFunction("absorb");
+    }
+
+    if (
+      checkCircleAbsorption(
+        circleProps[pIndex + 0],
+        circleProps[pIndex + 1],
+        circleProps[pIndex + 2],
+        x,
+        y,
+        r
+      )
+    ) {
+      playSoundBankFunction("absorbed", playAbsorbedChord);
+
+      player.animation.startTime = t;
+      player.animation.endTime = t + GROW_TIME;
+      player.animation.startValue = circleProps[pIndex + 2];
+      circleProps[pIndex + 2] += circleProps[i + 2] / 2;
+      circleProps[i + 2] = 0;
+      player.animation.endValue = circleProps[pIndex + 2];
+    } else {
+      stopSoundBankFunction("absorbed", 2);
+    }
+  }
+}
+
+function draw(t: number) {
   ctx.clearColor(0.0, 0.0, 0.0, 1.0); // Clear to black, fully opaque
   ctx.clearDepth(1.0); // Clear everything
   ctx.enable(ctx.DEPTH_TEST); // Enable depth testing
@@ -313,55 +369,7 @@ function tick(t: number) {
 
   //////////// draw
   ctx.drawArrays(ctx.TRIANGLES, 0, 6);
-
-  // absorb bubbles
-  for (let i = 0; i < circleProps.length; i += 4) {
-    const x = circleProps[i];
-    const y = circleProps[i + 1];
-    const r = circleProps[i + 2];
-    if (r === 0.0) continue;
-
-    const pIndex = player.index;
-    if (
-      checkCircleIntersection(
-        circleProps[pIndex + 0],
-        circleProps[pIndex + 1],
-        circleProps[pIndex + 2],
-        x,
-        y,
-        r
-      )
-    ) {
-      playSoundBankFunction("absorb", playAbsorbChord);
-    } else {
-      stopSoundBankFunction("absorb");
-    }
-
-    if (
-      checkCircleAbsorption(
-        circleProps[pIndex + 0],
-        circleProps[pIndex + 1],
-        circleProps[pIndex + 2],
-        x,
-        y,
-        r
-      )
-    ) {
-      playSoundBankFunction("absorbed", playAbsorbedChord);
-
-      player.animation.startTime = t;
-      player.animation.endTime = t + GROW_TIME;
-      player.animation.startValue = circleProps[pIndex + 2];
-      circleProps[pIndex + 2] += circleProps[i + 2] / 2;
-      circleProps[i + 2] = 0;
-      player.animation.endValue = circleProps[pIndex + 2];
-    } else {
-      stopSoundBankFunction("absorbed", 2);
-    }
-  }
 }
-
-requestAnimationFrame(tick);
 
 function playSoundBankFunction(soundBankKey, soundFunction) {
   if (!soundBank[soundBankKey]) {
