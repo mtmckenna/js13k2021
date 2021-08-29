@@ -26,8 +26,9 @@ const VERTEX_SHADER = require("./shaders/vertex.vert") as GlslShader;
 const FRAGMENT_SHADER = require("./shaders/fragment.frag") as GlslShader;
 const canvas: HTMLCanvasElement = document.createElement("canvas");
 const ctx = canvas.getContext("webgl");
-const width = 800;
-const height = 600;
+const MAX_RESOLUTION = 1024;
+const width = Math.min(window.innerWidth, MAX_RESOLUTION);
+const height = Math.min(window.innerHeight, MAX_RESOLUTION);
 const MOVING_ACC = 0.0003;
 const OTHER_CIRCLE_SLOWNESS = 0.5;
 const MAX_VEL = 0.003;
@@ -40,7 +41,7 @@ const START_SIZE = 0.05;
 
 const circles: Array<Circle> = [];
 
-let NUM_CIRCLES = 40;
+let NUM_CIRCLES = 70;
 let MIN_CIRCLE_SIZE = 0.01;
 let MAX_CIRCLE_SIZE = 0.1;
 let MIN_CIRCLE_START_VEL = 0.001;
