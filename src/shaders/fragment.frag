@@ -1,5 +1,5 @@
 #version 100
-#define NUM_CIRCLES 50
+#define NUM_CIRCLES 60
 #define PI 3.14159
 #define NUM_LAYERS 3.
 
@@ -21,10 +21,10 @@ float circleDist(vec2 p, float radius) {
   return length(p) - radius;
 }
 
-mat2 rot(float a) {
-    float s=sin(a), c=cos(a);
-    return mat2(c, -s, s, c);
-}
+// mat2 rot(float a) {
+//     float s=sin(a), c=cos(a);
+//     return mat2(c, -s, s, c);
+// }
 
 float rand(vec2 co){
     return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
@@ -80,20 +80,8 @@ float sdBox( in vec2 p, in vec2 b )
     return length(max(d,0.0)) + min(max(d.x,d.y),0.0);
 }
 
-float smoothFill(float x, float size, float fuzz) {
-  return smoothstep(size - fuzz, size + fuzz, x);
-}
-
-float fill(float x, float size) {
-  return step(size, x);
-}
-
 float lerp(float x1, float x2, float t) {
 	return x1 * (1.0- t) + x2*t;
-}
-
-float intersect(float shape1, float shape2){
-    return max(shape1, shape2);
 }
 
 float merge(float shape1, float shape2){
@@ -144,7 +132,7 @@ void main() {
   // Draw player
   float d = 99999.0;
 
-  // Draw borders
+  // Draw difference between inside and outside borders
   float top = smoothstep(uBorder - WALL_FUZZ, uBorder + WALL_FUZZ, (st + uCameraProps.xy).y);
   float right = smoothstep(uBorder - WALL_FUZZ, uBorder + WALL_FUZZ, (st + uCameraProps.xy).x);
   float bottom = smoothstep(-uBorder - WALL_FUZZ, -uBorder + WALL_FUZZ, (st + uCameraProps.xy).y);
@@ -154,17 +142,6 @@ void main() {
   color = mix(color, colorOutside, right);
   color = mix(colorOutside, color, bottom);
   color = mix(colorOutside, color, left);
-
-  float dBoxT = sdBox(vec2(0.0,  uBorder) -st - uCameraProps.xy, vec2(uBorder, .00001));
-  float dBoxR = sdBox(vec2(uBorder,  0.0) -st - uCameraProps.xy, vec2(.00001, uBorder));
-  float dBoxB = sdBox(vec2(0.0, -uBorder) -st - uCameraProps.xy, vec2(uBorder, .00001));
-  float dBoxL = sdBox(vec2(-uBorder, 0.0) -st - uCameraProps.xy, vec2(.00001, uBorder));
-
-  float dBox = smin(dBoxT, dBoxR, BEND);
-  dBox = smin(dBox, dBoxB, BEND);
-  dBox = smin(dBox, dBoxL, BEND);
-
-  d = smin(d, dBox, BEND2);
 
   // Draw circles
   for (int i = 0; i < NUM_CIRCLES; i++) {
@@ -176,13 +153,17 @@ void main() {
   // Draw star layers
   for (float i = 0.; i< 1.; i += 1./NUM_LAYERS) {
         vec2 uv2 = vec2(st);
-
         float scale = mix(10.,0.5, i);
         uv2 += uCameraProps.xy * i;
         color += vec4(starLayer(uv2 * scale + i*25.),1.);
     }
 
   color = colorCircle(color, strokeBoth(d, .01, CIRCLE_FUZZ));
+
+  // Draw box border
+  float boxDist = sdBox(-st - uCameraProps.xy, vec2(uBorder, uBorder));
+  float boxDistStroke = strokeBoth(boxDist, .01, CIRCLE_FUZZ);
+  color = colorCircle(color, boxDistStroke);
 
   gl_FragColor = color;
 }
