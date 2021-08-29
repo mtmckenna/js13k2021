@@ -40,7 +40,7 @@ const START_SIZE = 0.05;
 
 const circles: Array<Circle> = [];
 
-let NUM_CIRCLES = 60;
+let NUM_CIRCLES = 40;
 let MIN_CIRCLE_SIZE = 0.01;
 let MAX_CIRCLE_SIZE = 0.1;
 let MIN_CIRCLE_START_VEL = 0.001;
