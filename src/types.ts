@@ -16,6 +16,7 @@ export interface Circle {
   index: number;
   radius: number;
   vel: Float32Array;
+  acc: Float32Array;
   animation: Animation;
 }
 

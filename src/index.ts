@@ -27,14 +27,18 @@ const canvas: HTMLCanvasElement = document.createElement("canvas");
 const ctx = canvas.getContext("webgl");
 const width = 800;
 const height = 600;
-const MOVING_SPEED = 0.003;
-const MAX_VEL = MOVING_SPEED * 2;
-const FRICTION = 0.96;
+const MOVING_ACC = 0.0003;
+const OTHER_CIRCLE_SLOWNESS = 0.5;
+const MAX_VEL = 0.003;
+const MAX_VEL_OTHER_CIRCLES = MAX_VEL * OTHER_CIRCLE_SLOWNESS;
+const MAX_ACC = MOVING_ACC * 1;
+const FRICTION = 0.98;
 const MIN_VEL_THRESHOLD = 0.00015;
 const GROW_TIME = 500;
 const START_SIZE = 0.05;
 
 const circles: Array<Circle> = [];
+
 let NUM_CIRCLES = 50;
 let MIN_CIRCLE_SIZE = 0.01;
 let MAX_CIRCLE_SIZE = 0.1;
@@ -72,6 +76,7 @@ const player: Circle = {
   index: 0,
   radius: START_SIZE,
   vel: new Float32Array([0.0, 0.0]),
+  acc: new Float32Array([0.0, 0.0]),
   animation: {
     startTime: 0,
     endTime: 0,
@@ -143,24 +148,22 @@ const programInfo: GameProgramCache = {
 
 function handleInput() {
   if (gameState.gameOver) return;
-  if (inputState.left) player.vel[0] -= MOVING_SPEED;
-  if (inputState.right) player.vel[0] += MOVING_SPEED;
-  if (inputState.up) player.vel[1] += MOVING_SPEED;
-  if (inputState.down) player.vel[1] -= MOVING_SPEED;
 
-  if (!inputState.left || !inputState.right) {
-    player.vel[0] =
-      Math.sign(player.vel[0]) * Math.abs(player.vel[0]) * FRICTION;
-  }
+  player.acc[0] = 0;
+  player.acc[1] = 0;
+  if (inputState.left) player.acc[0] -= MOVING_ACC;
+  if (inputState.right) player.acc[0] += MOVING_ACC;
+  if (inputState.up) player.acc[1] += MOVING_ACC;
+  if (inputState.down) player.acc[1] -= MOVING_ACC;
+  const sizeFactor = velSizeFactor(player.radius);
 
-  player.vel[0] = clamp(player.vel[0], -MAX_VEL, MAX_VEL);
+  player.acc[0] += clamp(player.acc[0] * sizeFactor, -MAX_ACC, MAX_ACC);
+  player.acc[1] += clamp(player.acc[1] * sizeFactor, -MAX_ACC, MAX_ACC);
+}
 
-  if (!inputState.up || !inputState.down) {
-    player.vel[1] =
-      Math.sign(player.vel[1]) * Math.abs(player.vel[1]) * FRICTION;
-  }
-
-  player.vel[1] = clamp(player.vel[1], -MAX_VEL, MAX_VEL);
+function velSizeFactor(size: number): number {
+  const ratio = START_SIZE / size;
+  return lerp(0.15, 1.0, ratio);
 }
 
 function resetLevel() {
@@ -194,6 +197,7 @@ function resetLevel() {
     circles.push({
       index: i,
       vel: vel,
+      acc: new Float32Array([0, 0]),
       radius: radius,
       animation: {
         startTime: 0,
@@ -454,15 +458,38 @@ function checkCircleAbsorption(
   return r1 > r2 + d;
 }
 
+function accelerationForCircleVelocity(v: number): number {
+  return v === 0 ? MOVING_ACC : Math.sign(v) * MOVING_ACC;
+}
+
 function updateCircles(t: number) {
   for (let i = 0; i < circles.length; i++) {
     const circle = circles[i];
 
-    circle.vel[0] = clamp(circle.vel[0], -MAX_VEL, MAX_VEL);
-    circle.vel[1] = clamp(circle.vel[1], -MAX_VEL, MAX_VEL);
+    const sizeFactor = velSizeFactor(circle.radius);
 
-    circle.vel[1] = clamp(circle.vel[1], -MAX_VEL, MAX_VEL);
+    if (i !== player.index) {
+      const xAcc = accelerationForCircleVelocity(circle.vel[0]);
+      const yAcc = accelerationForCircleVelocity(circle.vel[1]);
 
+      circle.acc[0] += clamp(xAcc, -MAX_ACC, MAX_ACC);
+      circle.acc[1] += clamp(yAcc, -MAX_ACC, MAX_ACC);
+    }
+
+    const maxVel = i === player.index ? MAX_VEL : MAX_VEL_OTHER_CIRCLES;
+
+    circle.vel[0] = clamp(
+      (circle.vel[0] + circle.acc[0]) * FRICTION,
+      -maxVel * sizeFactor,
+      maxVel * sizeFactor
+    );
+    circle.vel[1] = clamp(
+      (circle.vel[1] + circle.acc[1]) * FRICTION,
+      -maxVel * sizeFactor,
+      maxVel * sizeFactor
+    );
+
+    // Update position
     circleProps[circle.index * 4 + 0] += circle.vel[0];
     circleProps[circle.index * 4 + 1] += circle.vel[1];
 
@@ -476,6 +503,7 @@ function updateCircles(t: number) {
         circleProps[circle.index * 4 + 0]
       );
       circle.vel[0] = Math.abs(circle.vel[0]);
+      circle.acc[0] = Math.abs(circle.acc[0]);
     }
 
     // Right border
@@ -488,6 +516,7 @@ function updateCircles(t: number) {
         circleProps[circle.index * 4 + 0]
       );
       circle.vel[0] = -Math.abs(circle.vel[0]);
+      circle.acc[0] = -Math.abs(circle.acc[0]);
     }
 
     // Top border
@@ -500,6 +529,7 @@ function updateCircles(t: number) {
         circleProps[circle.index * 4 + 1]
       );
       circle.vel[1] = -Math.abs(circle.vel[1]);
+      circle.acc[1] = -Math.abs(circle.acc[1]);
     }
 
     // Bottom border
@@ -512,6 +542,7 @@ function updateCircles(t: number) {
         circleProps[circle.index * 4 + 1]
       );
       circle.vel[1] = Math.abs(circle.vel[1]);
+      circle.acc[1] = Math.abs(circle.acc[1]);
     }
 
     // Update grow animation
