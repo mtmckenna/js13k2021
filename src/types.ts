@@ -15,6 +15,7 @@ export interface Camera {
 export interface Circle {
   index: number;
   radius: number;
+  color: Float32Array;
   vel: Float32Array;
   acc: Float32Array;
   animation: Animation;
@@ -24,6 +25,7 @@ export interface GameProgramCache extends ProgramCache {
   uniforms: {
     uRes: WebGLUniformLocation | null;
     uCircleProps: WebGLUniformLocation | null;
+    uCircleColorProps: WebGLUniformLocation | null;
     uCameraProps: WebGLUniformLocation | null;
     uTime: WebGLUniformLocation | null;
     uBorder: WebGLUniformLocation | null;

@@ -8,6 +8,7 @@ precision highp int;
 
 uniform vec2 uRes;
 uniform vec4 uCircleProps[NUM_CIRCLES];
+uniform vec4 uCircleColorProps[NUM_CIRCLES];
 uniform vec4 uCameraProps;
 uniform float uTime;
 uniform float uBorder;
@@ -16,6 +17,7 @@ const float WALL_FUZZ = .025;
 const float CIRCLE_FUZZ = .00001;
 const float BEND = .001;
 const float BEND2 = .12;
+const vec4 WHITE = vec4(1.);
 
 float circleDist(vec2 p, float radius) {
   return length(p) - radius;
@@ -112,7 +114,7 @@ float smin( float a, float b, float k )
 
 
 vec4 colorCircle(vec4 _color, float _d) {
-  return mix(vec4(1.0), _color, _d);
+  return mix(vec4(1.), _color, _d);
 }
 
 vec3 pal( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d )
@@ -129,9 +131,6 @@ void main() {
   vec4 colorOutside = vec4(pal(distortedT, vec3(0.5,0.5,1.0),vec3(0.5,0.5,1.0),vec3(0.5,0.5,1.0),vec3(0.4,0.3,0.2)), 1.);
   vec4 color = colorInside;
 
-  // Draw player
-  float d = 99999.0;
-
   // Draw difference between inside and outside borders
   float top = smoothstep(uBorder - WALL_FUZZ, uBorder + WALL_FUZZ, (st + uCameraProps.xy).y);
   float right = smoothstep(uBorder - WALL_FUZZ, uBorder + WALL_FUZZ, (st + uCameraProps.xy).x);
@@ -143,27 +142,33 @@ void main() {
   color = mix(colorOutside, color, bottom);
   color = mix(colorOutside, color, left);
 
-  // Draw circles
-  for (int i = 0; i < NUM_CIRCLES; i++) {
-    if (uCircleProps[i].z <= 0.0) continue;
-    float d2 = circleDist(uCircleProps[i].xy - st - uCameraProps.xy, uCircleProps[i].z);
-    d = smin(d2, d, BEND2);
-  }
-
   // Draw star layers
   for (float i = 0.; i< 1.; i += 1./NUM_LAYERS) {
-        vec2 uv2 = vec2(st);
-        float scale = mix(10.,0.5, i);
-        uv2 += uCameraProps.xy * i;
-        color += vec4(starLayer(uv2 * scale + i*25.),1.);
-    }
-
-  color = colorCircle(color, strokeBoth(d, .01, CIRCLE_FUZZ));
+    vec2 uv2 = vec2(st);
+    float scale = mix(10.,0.5, i);
+    uv2 += uCameraProps.xy * i;
+    color += vec4(starLayer(uv2 * scale + i*25.),1.);
+  }
 
   // Draw box border
   float boxDist = sdBox(-st - uCameraProps.xy, vec2(uBorder, uBorder));
   float boxDistStroke = strokeBoth(boxDist, .01, CIRCLE_FUZZ);
   color = colorCircle(color, boxDistStroke);
+
+  float d = 999.0;
+
+  // Draw circles
+  for (int i = 0; i < NUM_CIRCLES; i++) {
+    if (uCircleProps[i].z <= 0.0) continue;
+    float d2 = circleDist(uCircleProps[i].xy - st - uCameraProps.xy, uCircleProps[i].z);
+    d = smin(d2, d, BEND2);
+    
+    if (uCircleColorProps[i].w == 1.0) {
+      color = mix(vec4(.9, 0.0, 0.8, 1.), color, strokeBoth(d2, .01, CIRCLE_FUZZ));
+    }
+  }
+
+  color = colorCircle(color, strokeBoth(d, .01, CIRCLE_FUZZ));
 
   gl_FragColor = color;
 }

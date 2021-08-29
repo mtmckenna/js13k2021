@@ -7,6 +7,7 @@ import {
   clamp,
   easeOutBack,
   lerp,
+  lerpVec3,
   randomFloatBetween,
   randomSign,
 } from "./math-helpers";
@@ -54,6 +55,7 @@ const gameState: GameState = {
 };
 
 const circleProps = new Float32Array(NUM_CIRCLES * 4);
+const circleColorProps = new Float32Array(NUM_CIRCLES * 4).fill(0.0);
 
 canvas.id = "game";
 canvas.width = width;
@@ -77,6 +79,7 @@ const player: Circle = {
   radius: START_SIZE,
   vel: new Float32Array([0.0, 0.0]),
   acc: new Float32Array([0.0, 0.0]),
+  color: new Float32Array([1.0, 1.0, 1.0, 1.0]),
   animation: {
     startTime: 0,
     endTime: 0,
@@ -131,6 +134,10 @@ const programInfo: GameProgramCache = {
       program,
       FRAGMENT_SHADER.uniforms["uCircleProps"].variableName
     ),
+    uCircleColorProps: ctx.getUniformLocation(
+      program,
+      FRAGMENT_SHADER.uniforms["uCircleColorProps"].variableName
+    ),
     uCameraProps: ctx.getUniformLocation(
       program,
       FRAGMENT_SHADER.uniforms["uCameraProps"].variableName
@@ -162,6 +169,7 @@ function handleInput() {
 }
 
 function velSizeFactor(size: number): number {
+  if (size === 0) return 1.0;
   const ratio = START_SIZE / size;
   return lerp(0.15, 1.0, ratio);
 }
@@ -198,6 +206,7 @@ function resetLevel() {
       index: i,
       vel: vel,
       acc: new Float32Array([0, 0]),
+      color: new Float32Array([1.0, 1.0, 1.0, 1.0]),
       radius: radius,
       animation: {
         startTime: 0,
@@ -288,6 +297,7 @@ resetLevel();
 requestAnimationFrame(tick);
 
 function checkCollisions(t: number) {
+  circleColorProps.fill(0.0);
   // Cache collision checks?
   for (let i = 0; i < circleProps.length; i += 4) {
     const iCircleIndex = Math.floor(i / 4);
@@ -311,6 +321,22 @@ function checkCollisions(t: number) {
       //   stopSoundBankFunction("absorb");
       // }
 
+      if (intersects) {
+        circleColorProps[i + 3] = 1.0;
+
+        // circles[absorberIndex].animation.startTime = t;
+        // circles[absorberIndex].animation.endTime = t + GROW_TIME;
+        // circles[absorberIndex].animation.startValue =
+        //   circleProps[absorberIndexProps + 2];
+        // absorberCircle.radius += absorbeeCircle.radius / 4;
+        // circles[absorberIndex].animation.endValue = absorberCircle.radius;
+        // circles[absorbeeIndex].animation.startTime = t;
+        // circles[absorbeeIndex].animation.endTime = t + GROW_TIME;
+        // circles[absorbeeIndex].animation.startValue =
+        //   circleProps[absorbeeIndexProps + 2];
+        // absorbeeCircle.radius = 0;
+        // circles[absorbeeIndex].animation.endValue = absorbeeCircle.radius;
+      }
       let absorbed = false;
       let absorberIndex: number = null;
       let absorbeeIndex: number = null;
@@ -396,6 +422,7 @@ function draw(t: number) {
   //////////////// circle props
   // ctx.uniform1i(programInfo.uniforms.uNumCircles, NUM_CIRCLES);
   ctx.uniform4fv(programInfo.uniforms.uCircleProps, circleProps);
+  ctx.uniform4fv(programInfo.uniforms.uCircleColorProps, circleColorProps);
 
   //////////////// time
   ctx.uniform1f(programInfo.uniforms.uTime, t);
