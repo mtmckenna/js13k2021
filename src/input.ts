@@ -82,19 +82,19 @@ function inputPressed(xInput: number, yInput: number) {
   const MIN_INPUT = 0.01;
 
   if (Math.abs(x) > MIN_INPUT && x > 0) {
-    inputState.left = true;
-  }
-
-  if (Math.abs(x) > MIN_INPUT && x < 0) {
     inputState.right = true;
   }
 
+  if (Math.abs(x) > MIN_INPUT && x < 0) {
+    inputState.left = true;
+  }
+
   if (Math.abs(y) > MIN_INPUT && y > 0) {
-    inputState.up = true;
+    inputState.down = true;
   }
 
   if (Math.abs(y) > MIN_INPUT && y < 0) {
-    inputState.down = true;
+    inputState.up = true;
   }
 }
 
