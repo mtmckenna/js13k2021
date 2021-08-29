@@ -42,7 +42,7 @@ float starDist(vec2 uv, float flare) {
     // rays = max(0.,1.-abs(uv.x * uv.y * 1000.));
     // rays = 1.-abs(uv.x * uv.y * 1000.);
     // m += rays * .3 * flare;
-    m *= smoothstep(1., .2, d);
+    m *= smoothstep(.75, .2, d);
 
     return m;
 }

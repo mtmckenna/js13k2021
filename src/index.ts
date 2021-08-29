@@ -1,13 +1,15 @@
 import { GlslShader } from "webpack-glsl-minify";
-
-const VERTEX_SHADER = require("./shaders/vertex.vert") as GlslShader;
-const FRAGMENT_SHADER = require("./shaders/fragment.frag") as GlslShader;
+import { compiledProgram, configureBuffer } from "./webgl-helpers";
+import { Camera, Circle, GameProgramCache, GameState } from "./types";
+import { inputState, addEventListeners } from "./input";
 
 import {
-  compiledProgram,
-  configureBuffer,
-  ProgramCache,
-} from "./webgl-helpers";
+  clamp,
+  easeOutBack,
+  lerp,
+  randomFloatBetween,
+  randomSign,
+} from "./math-helpers";
 
 import {
   playMove,
@@ -19,8 +21,8 @@ import {
   Sound,
 } from "./audio";
 
-import { inputState, addEventListeners } from "./input";
-
+const VERTEX_SHADER = require("./shaders/vertex.vert") as GlslShader;
+const FRAGMENT_SHADER = require("./shaders/fragment.frag") as GlslShader;
 const canvas: HTMLCanvasElement = document.createElement("canvas");
 const ctx = canvas.getContext("webgl");
 const width = 800;
@@ -30,7 +32,8 @@ const MAX_VEL = MOVING_SPEED * 2;
 const FRICTION = 0.96;
 const MIN_VEL_THRESHOLD = 0.00015;
 const GROW_TIME = 500;
-const GROW_SIZE = 0.1;
+const START_SIZE = 0.05;
+
 const circles: Array<Circle> = [];
 let NUM_CIRCLES = 50;
 let MIN_CIRCLE_SIZE = 0.01;
@@ -38,12 +41,15 @@ let MAX_CIRCLE_SIZE = 0.1;
 let MIN_CIRCLE_START_VEL = 0.001;
 let MAX_CIRCLE_START_VEL = 0.002;
 
-// let currentSize = 0.1;
 let borderSize = 2.0;
 
 const gameState: GameState = {
   started: false,
+  level: 0,
+  gameOver: false,
 };
+
+const circleProps = new Float32Array(NUM_CIRCLES * 4);
 
 canvas.id = "game";
 canvas.width = width;
@@ -61,11 +67,10 @@ addEventListeners(canvas);
 
 const res = new Float32Array([canvas.width, canvas.height]);
 
-const START_SIZE = 0.1;
-
 const initialPlayerProps = [0.0, 0.0, START_SIZE, 0.0];
 const player: Circle = {
   index: 0,
+  radius: START_SIZE,
   vel: new Float32Array([0.0, 0.0]),
   animation: {
     startTime: 0,
@@ -86,46 +91,6 @@ const soundBank: { [key: string]: Sound | null } = {
   absorbed: null,
 };
 
-let circleProps = new Float32Array(NUM_CIRCLES * 4);
-circleProps.set(initialPlayerProps, 0);
-
-circles.push(player);
-for (let i = 1; i < NUM_CIRCLES; i++) {
-  const radius = randomFloatBetween(MIN_CIRCLE_SIZE, MAX_CIRCLE_SIZE);
-
-  circleProps[i * 4 + 0] = randomFloatBetween(
-    -borderSize + radius,
-    borderSize - radius
-  );
-
-  circleProps[i * 4 + 1] = randomFloatBetween(
-    -borderSize + radius,
-    borderSize - radius
-  );
-
-  circleProps[i * 4 + 2] = radius;
-  circleProps[i * 4 + 3] = 0;
-
-  const vel = new Float32Array([
-    randomSign() *
-      randomFloatBetween(MIN_CIRCLE_START_VEL, MAX_CIRCLE_START_VEL),
-    randomSign() *
-      randomFloatBetween(MIN_CIRCLE_START_VEL, MAX_CIRCLE_START_VEL),
-  ]);
-
-  circles.push({
-    index: i,
-    vel: vel,
-    animation: {
-      startTime: 0,
-      endTime: 0,
-      startValue: START_SIZE,
-      endValue: START_SIZE,
-      currentValue: START_SIZE,
-    },
-  });
-}
-
 // prettier-ignore
 const squarePositions = new Float32Array([
   -1,  1,
@@ -137,7 +102,7 @@ const squarePositions = new Float32Array([
    1, -1
 ]);
 
-let backgroundSound = null;
+// let backgroundSound = null;
 
 const program = compiledProgram(
   ctx,
@@ -177,6 +142,7 @@ const programInfo: GameProgramCache = {
 };
 
 function handleInput() {
+  if (gameState.gameOver) return;
   if (inputState.left) player.vel[0] -= MOVING_SPEED;
   if (inputState.right) player.vel[0] += MOVING_SPEED;
   if (inputState.up) player.vel[1] += MOVING_SPEED;
@@ -195,6 +161,49 @@ function handleInput() {
   }
 
   player.vel[1] = clamp(player.vel[1], -MAX_VEL, MAX_VEL);
+}
+
+function resetLevel() {
+  player.radius = START_SIZE;
+  circleProps.set([...initialPlayerProps], 0);
+
+  circles.push(player);
+  for (let i = 1; i < NUM_CIRCLES; i++) {
+    const radius = randomFloatBetween(MIN_CIRCLE_SIZE, MAX_CIRCLE_SIZE);
+
+    circleProps[i * 4 + 0] = randomFloatBetween(
+      -borderSize + radius,
+      borderSize - radius
+    );
+
+    circleProps[i * 4 + 1] = randomFloatBetween(
+      -borderSize + radius,
+      borderSize - radius
+    );
+
+    circleProps[i * 4 + 2] = radius;
+    circleProps[i * 4 + 3] = 0;
+
+    const vel = new Float32Array([
+      randomSign() *
+        randomFloatBetween(MIN_CIRCLE_START_VEL, MAX_CIRCLE_START_VEL),
+      randomSign() *
+        randomFloatBetween(MIN_CIRCLE_START_VEL, MAX_CIRCLE_START_VEL),
+    ]);
+
+    circles.push({
+      index: i,
+      vel: vel,
+      radius: radius,
+      animation: {
+        startTime: 0,
+        endTime: 0,
+        startValue: START_SIZE,
+        endValue: START_SIZE,
+        currentValue: START_SIZE,
+      },
+    });
+  }
 }
 
 function updateCameraPosition() {
@@ -227,7 +236,7 @@ function playAudio() {
   // }
 }
 
-function hideTitle() {
+function startGame() {
   if (!gameState.started) {
     if (
       inputState.up ||
@@ -236,36 +245,58 @@ function hideTitle() {
       inputState.left
     ) {
       gameState.started = true;
+      if (gameState.gameOver) resetLevel();
+      gameState.gameOver = false;
       hideText();
+      goToLevel(1);
     }
   }
 }
 
+function gameOver() {
+  gameState.gameOver = true;
+  gameState.started = false;
+  displayText("game over you were absorbed");
+}
+
+function goToLevel(levelNumber: number) {
+  gameState.level = 1;
+  displayText("be the biggest", 1500);
+  setTimeout(() => hideText(), 3000);
+}
+
 function tick(t: number) {
   requestAnimationFrame(tick);
-  hideTitle();
-  handleInput();
-  updateCircles(t);
+  startGame();
+
+  if (gameState.started || (!gameState.started && gameState.gameOver)) {
+    handleInput();
+    updateCircles(t);
+  }
+
   playAudio();
   updateCameraPosition();
   checkCollisions(t);
   draw(t);
 }
 
+resetLevel();
 requestAnimationFrame(tick);
 
 function checkCollisions(t: number) {
   // Cache collision checks?
   for (let i = 0; i < circleProps.length; i += 4) {
-    const iCircle = i / 4;
+    const iCircleIndex = Math.floor(i / 4);
+    const iCircle = circles[iCircleIndex];
     for (let j = i + 4; j < circleProps.length; j += 4) {
-      const jCircle = j / 4;
+      const jCircleIndex = Math.floor(j / 4);
+      const jCircle = circles[jCircleIndex];
       const x1 = circleProps[i];
       const y1 = circleProps[i + 1];
-      const r1 = circleProps[i + 2];
+      const r1 = iCircle.radius;
       const x2 = circleProps[j];
       const y2 = circleProps[j + 1];
-      const r2 = circleProps[j + 2];
+      const r2 = jCircle.radius;
 
       if (r1 === 0.0 || r2 === 0.0) continue;
 
@@ -281,19 +312,25 @@ function checkCollisions(t: number) {
       let absorbeeIndex: number = null;
       let absorberIndexProps: number = null;
       let absorbeeIndexProps: number = null;
+      let absorberCircle: Circle = null;
+      let absorbeeCircle: Circle = null;
 
       if (r1 > r2) {
         absorbed = checkCircleAbsorption(x1, y1, r1, x2, y2, r2);
-        absorberIndex = iCircle;
-        absorbeeIndex = jCircle;
+        absorberIndex = iCircleIndex;
+        absorbeeIndex = jCircleIndex;
         absorberIndexProps = i;
         absorbeeIndexProps = j;
+        absorberCircle = circles[iCircleIndex];
+        absorbeeCircle = circles[jCircleIndex];
       } else if (r2 > r1) {
         absorbed = checkCircleAbsorption(x2, y2, r2, x1, y1, r1);
-        absorberIndex = jCircle;
-        absorbeeIndex = iCircle;
+        absorberIndex = jCircleIndex;
+        absorbeeIndex = iCircleIndex;
         absorberIndexProps = j;
         absorbeeIndexProps = i;
+        absorberCircle = circles[jCircleIndex];
+        absorbeeCircle = circles[iCircleIndex];
       }
 
       if (absorbed) {
@@ -301,12 +338,17 @@ function checkCollisions(t: number) {
         circles[absorberIndex].animation.endTime = t + GROW_TIME;
         circles[absorberIndex].animation.startValue =
           circleProps[absorberIndexProps + 2];
-        circleProps[absorberIndexProps + 2] +=
-          circleProps[absorbeeIndexProps + 2] / 2;
-        circleProps[absorbeeIndexProps + 2] = 0;
-        circles[absorberIndex].animation.endValue =
-          circleProps[absorberIndexProps + 2];
-      } else {
+        absorberCircle.radius += absorbeeCircle.radius / 4;
+        circles[absorberIndex].animation.endValue = absorberCircle.radius;
+
+        circles[absorbeeIndex].animation.startTime = t;
+        circles[absorbeeIndex].animation.endTime = t + GROW_TIME;
+        circles[absorbeeIndex].animation.startValue =
+          circleProps[absorbeeIndexProps + 2];
+        absorbeeCircle.radius = 0;
+        circles[absorbeeIndex].animation.endValue = absorbeeCircle.radius;
+
+        if (absorbeeIndex === 0) gameOver();
         // stopSoundBankFunction("absorbed", 2);
       }
     }
@@ -340,24 +382,6 @@ function draw(t: number) {
   res[0] = canvas.width;
   res[1] = canvas.height;
   ctx.uniform2fv(programInfo.uniforms.uRes, res);
-
-  //////////////// player props
-  // player.props[2] = currentSize;
-
-  // console.log(player.props[0], player.props[1]);
-
-  if (player.animation.startTime > 0) {
-    let pct = clamp((t - player.animation.startTime) / GROW_TIME, 0, 1); // get percent through animation, clamp between 0 and 1
-    pct = easeOutBack(pct); // add in easing function
-
-    player.animation.currentValue = lerp(
-      player.animation.startValue,
-      player.animation.endValue,
-      pct
-    );
-  }
-
-  circleProps[player.index + 2] = player.animation.currentValue;
 
   //////////////// camera props
   ctx.uniform4fv(programInfo.uniforms.uCameraProps, camera.props);
@@ -489,6 +513,20 @@ function updateCircles(t: number) {
       );
       circle.vel[1] = Math.abs(circle.vel[1]);
     }
+
+    // Update grow animation
+    if (circle.animation.startTime > 0) {
+      let pct = clamp((t - circle.animation.startTime) / GROW_TIME, 0, 1); // get percent through animation, clamp between 0 and 1
+      pct = easeOutBack(pct); // add in easing function
+
+      circle.animation.currentValue = lerp(
+        circle.animation.startValue,
+        circle.animation.endValue,
+        pct
+      );
+
+      circleProps[circle.index * 4 + 2] = circle.animation.currentValue;
+    }
   }
 }
 
@@ -500,10 +538,6 @@ function getCanvasHeight(canvas) {
   return canvas.width / getAspectRatio();
 }
 
-function clamp(num: number, min: number, max: number): number {
-  return Math.min(Math.max(num, min), max);
-}
-
 function displayText(text, delay = 0) {
   setTimeout(() => {
     textBox.innerText = text;
@@ -512,57 +546,7 @@ function displayText(text, delay = 0) {
 }
 
 function hideText(delay = 0) {
-  setTimeout(() => (textBox.style.opacity = "0.0"), delay);
-}
-
-interface Circle {
-  index: number;
-  vel: Float32Array;
-  animation: Animation;
-}
-
-interface Animation {
-  startTime: number;
-  endTime: number;
-  startValue: number;
-  endValue: number;
-  currentValue: number;
-}
-
-interface Camera {
-  props: Float32Array;
-}
-
-interface GameProgramCache extends ProgramCache {
-  uniforms: {
-    uRes: WebGLUniformLocation | null;
-    uCircleProps: WebGLUniformLocation | null;
-    uCameraProps: WebGLUniformLocation | null;
-    uTime: WebGLUniformLocation | null;
-    uBorder: WebGLUniformLocation | null;
-  };
-}
-
-interface GameState {
-  started: boolean;
-}
-
-function lerp(x1: number, x2: number, t: number) {
-  return x1 * (1 - t) + x2 * t;
-}
-
-// https://easings.net/#
-function easeOutBack(x: number): number {
-  const c1 = 1.70158;
-  const c3 = c1 + 1;
-
-  return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
-}
-
-function randomFloatBetween(min: number, max: number) {
-  return Math.random() * (max - min) + min;
-}
-
-function randomSign(): number {
-  return Math.random() < 0.5 ? -1 : 1;
+  setTimeout(() => {
+    textBox.style.opacity = "0.0";
+  }, delay);
 }
