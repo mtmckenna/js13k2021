@@ -1,7 +1,7 @@
 #version 100
 #define NUM_CIRCLES 70
 #define PI 3.14159
-#define NUM_LAYERS 3.
+#define NUM_LAYERS 1.
 
 precision highp float;
 precision highp int;
@@ -29,23 +29,14 @@ float circleDist(vec2 p, float radius) {
 // }
 
 float rand(vec2 co){
-    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+  return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
 // https://www.youtube.com/watch?v=rvDo9LvfoVE
 float starDist(vec2 uv, float flare) {
     float d = length(uv);
     float m = .02/d;
-    // float rays = max(0.,1.-abs(uv.x * uv.y * 1000.));
-    // float rays = 1.-abs(uv.x * uv.y * 1000.);
-
-    // m += rays * flare;
-    // uv *= rot(PI / 4.0);
-    // rays = max(0.,1.-abs(uv.x * uv.y * 1000.));
-    // rays = 1.-abs(uv.x * uv.y * 1000.);
-    // m += rays * .3 * flare;
-    m *= smoothstep(.75, .2, d);
-
+    m *= smoothstep(1., .1, d);
     return m;
 }
 
@@ -78,8 +69,8 @@ vec3 starLayer(vec2 uv) {
 
 float sdBox( in vec2 p, in vec2 b )
 {
-    vec2 d = abs(p)-b;
-    return length(max(d,0.0)) + min(max(d.x,d.y),0.0);
+  vec2 d = abs(p)-b;
+  return length(max(d,0.0)) + min(max(d.x,d.y),0.0);
 }
 
 float lerp(float x1, float x2, float t) {
@@ -87,7 +78,7 @@ float lerp(float x1, float x2, float t) {
 }
 
 float merge(float shape1, float shape2){
-    return min(shape1, shape2);
+  return min(shape1, shape2);
 }
 
 float stroke(float x, float w) {
@@ -108,10 +99,9 @@ float strokeBoth(float x, float w, float fuzz) {
 // https://www.iquilezles.org/www/articles/smin/smin.htm
 float smin( float a, float b, float k )
 {
-    float h = max( k-abs(a-b), 0.0 )/k;
-    return min( a, b ) - h*h*k*(1.0/4.0);
+  float h = max( k-abs(a-b), 0.0 )/k;
+  return min( a, b ) - h*h*k*(1.0/4.0);
 }
-
 
 vec4 colorCircle(vec4 _color, float _d) {
   return mix(vec4(1.), _color, _d);
@@ -131,7 +121,10 @@ void main() {
   vec4 colorOutside = vec4(pal(distortedT, vec3(0.5,0.5,1.0),vec3(0.5,0.5,1.0),vec3(0.5,0.5,1.0),vec3(0.4,0.3,0.2)), 1.);
   vec4 color = colorInside;
 
+  color = vec4(0.);
+
   // Draw difference between inside and outside borders
+  // TODO: might be able to drop smoothstep now...
   float top = smoothstep(uBorder - WALL_FUZZ, uBorder + WALL_FUZZ, (st + uCameraProps.xy).y);
   float right = smoothstep(uBorder - WALL_FUZZ, uBorder + WALL_FUZZ, (st + uCameraProps.xy).x);
   float bottom = smoothstep(-uBorder - WALL_FUZZ, -uBorder + WALL_FUZZ, (st + uCameraProps.xy).y);
@@ -145,7 +138,7 @@ void main() {
   // Draw star layers
   for (float i = 0.; i< 1.; i += 1./NUM_LAYERS) {
     vec2 uv2 = vec2(st);
-    float scale = mix(10.,0.5, i);
+    float scale = mix(10.0,0.5, i);
     uv2 += uCameraProps.xy * i;
     color += vec4(starLayer(uv2 * scale + i*25.),1.);
   }
