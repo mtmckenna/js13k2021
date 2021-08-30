@@ -1,7 +1,7 @@
 #version 100
 #define NUM_CIRCLES 70
 #define PI 3.14159
-#define NUM_LAYERS 1.
+#define NUM_LAYERS 3.
 
 precision highp float;
 precision highp int;
@@ -120,8 +120,6 @@ void main() {
   vec4 colorInside = vec4(pal(distortedT, vec3(0.025,0.025,0.1),vec3(0.025,0.025,0.1),vec3(1.0,1.0,1.0),vec3(0.0,0.1,0.2)), 1.);
   vec4 colorOutside = vec4(pal(distortedT, vec3(0.5,0.5,1.0),vec3(0.5,0.5,1.0),vec3(0.5,0.5,1.0),vec3(0.4,0.3,0.2)), 1.);
   vec4 color = colorInside;
-
-  color = vec4(0.);
 
   // Draw difference between inside and outside borders
   // TODO: might be able to drop smoothstep now...
