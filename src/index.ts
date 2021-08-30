@@ -26,7 +26,7 @@ const VERTEX_SHADER = require("./shaders/vertex.vert") as GlslShader;
 const FRAGMENT_SHADER = require("./shaders/fragment.frag") as GlslShader;
 const canvas: HTMLCanvasElement = document.createElement("canvas");
 const ctx = canvas.getContext("webgl");
-const MAX_RESOLUTION = 1024;
+const MAX_RESOLUTION = 800;
 const width = Math.min(window.innerWidth, MAX_RESOLUTION);
 const height = Math.min(window.innerHeight, MAX_RESOLUTION);
 const MOVING_ACC = 0.0003;
@@ -47,6 +47,9 @@ let MAX_CIRCLE_SIZE = 0.1;
 let MIN_CIRCLE_START_VEL = 0.001;
 let MAX_CIRCLE_START_VEL = 0.002;
 
+const times: number[] = [];
+let fps;
+
 let borderSize = 2.0;
 
 const gameState: GameState = {
@@ -64,6 +67,12 @@ canvas.height = height;
 const div = document.createElement("div");
 div.appendChild(canvas);
 document.body.appendChild(canvas);
+
+const fpsBox = document.createElement("div");
+fpsBox.classList.add("fps");
+fpsBox.innerText = "0";
+
+document.body.appendChild(fpsBox);
 
 const textBox = document.createElement("div");
 textBox.classList.add("text");
@@ -279,6 +288,17 @@ function goToLevel(levelNumber: number) {
   setTimeout(() => hideText(), 3000);
 }
 
+// https://www.growingwiththeweb.com/2017/12/fast-simple-js-fps-counter.html
+function updateFps() {
+  const now = performance.now();
+  while (times.length > 0 && times[0] <= now - 1000) {
+    times.shift();
+  }
+  times.push(now);
+  fps = times.length;
+  fpsBox.innerText = fps;
+}
+
 function tick(t: number) {
   requestAnimationFrame(tick);
   startGame();
@@ -292,6 +312,7 @@ function tick(t: number) {
   updateCameraPosition();
   checkCollisions(t);
   draw(t);
+  updateFps();
 }
 
 resetLevel();
