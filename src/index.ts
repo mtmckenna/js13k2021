@@ -27,8 +27,6 @@ const FRAGMENT_SHADER = require("./shaders/fragment.frag") as GlslShader;
 const canvas: HTMLCanvasElement = document.createElement("canvas");
 const ctx = canvas.getContext("webgl");
 const MAX_RESOLUTION = 800;
-const width = Math.min(window.innerWidth, MAX_RESOLUTION);
-const height = Math.min(window.innerHeight, MAX_RESOLUTION);
 const MOVING_ACC = 0.0003;
 const OTHER_CIRCLE_SLOWNESS = 0.5;
 const MAX_VEL = 0.003;
@@ -56,14 +54,13 @@ const gameState: GameState = {
   started: false,
   level: 0,
   gameOver: false,
+  dimensions: { width: -1, height: -1 },
 };
 
 const circleProps = new Float32Array(NUM_CIRCLES * 4);
 const circleColorProps = new Float32Array(NUM_CIRCLES * 4).fill(0.0);
 
 canvas.id = "game";
-canvas.width = width;
-canvas.height = height;
 const div = document.createElement("div");
 div.appendChild(canvas);
 document.body.appendChild(canvas);
@@ -184,6 +181,21 @@ function velSizeFactor(size: number): number {
   return lerp(0.15, 1.0, ratio);
 }
 
+function resize() {
+  const width = Math.min(window.innerWidth, MAX_RESOLUTION);
+  const height = Math.min(window.innerHeight, MAX_RESOLUTION);
+  const oldWidth = gameState.dimensions.width;
+  const oldHeight = gameState.dimensions.height;
+  if (width === oldWidth && height === oldHeight) return;
+
+  canvas.width = width;
+  canvas.height = height;
+  ctx.viewport(0, 0, width, height);
+
+  gameState.dimensions.width = width;
+  gameState.dimensions.height = height;
+}
+
 function resetLevel() {
   player.radius = START_SIZE;
   circleProps.set([...initialPlayerProps], 0);
@@ -301,6 +313,7 @@ function updateFps() {
 
 function tick(t: number) {
   requestAnimationFrame(tick);
+  resize();
   startGame();
 
   if (gameState.started || (!gameState.started && gameState.gameOver)) {
