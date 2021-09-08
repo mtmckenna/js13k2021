@@ -1,7 +1,7 @@
 import { GlslShader } from "webpack-glsl-minify";
 import { compiledProgram, configureBuffer } from "./webgl-helpers";
 import { Camera, Circle, GameProgramCache, GameState } from "./types";
-import { inputState, addEventListeners } from "./input";
+import { inputState, addEventListeners, resetInput } from "./input";
 
 import {
   clamp,
@@ -29,17 +29,20 @@ const ctx = canvas.getContext("webgl");
 const MAX_RESOLUTION = 800;
 const MOVING_ACC = 0.0003;
 const OTHER_CIRCLE_SLOWNESS = 0.5;
-const MAX_VEL = 0.003;
+const MAX_VEL = 0.004;
 const MAX_VEL_OTHER_CIRCLES = MAX_VEL * OTHER_CIRCLE_SLOWNESS;
 const MAX_ACC = MOVING_ACC * 1;
 const FRICTION = 0.98;
 const MIN_VEL_THRESHOLD = 0.00015;
 const GROW_TIME = 500;
-const START_SIZE = 0.05;
+const START_SIZE = 0.01;
+const START_SIZE_BOOST = 0.001;
+const START_SIZE_BOOST_LIMIT_COUNT = 200;
+const RESTART_TIME = 2500;
 
 const circles: Array<Circle> = [];
 
-let NUM_CIRCLES = 70;
+let NUM_CIRCLES = 25;
 let MIN_CIRCLE_SIZE = 0.01;
 let MAX_CIRCLE_SIZE = 0.1;
 let MIN_CIRCLE_START_VEL = 0.001;
@@ -54,7 +57,9 @@ const gameState: GameState = {
   started: false,
   level: 0,
   gameOver: false,
+  levelWon: false,
   dimensions: { width: -1, height: -1 },
+  readyToTryAgainAt: 0,
 };
 
 const circleProps = new Float32Array(NUM_CIRCLES * 4);
@@ -74,27 +79,13 @@ document.body.appendChild(fpsBox);
 const textBox = document.createElement("div");
 textBox.classList.add("text");
 document.body.appendChild(textBox);
-setTimeout(() => displayText("Absorbed"), 1);
+setTimeout(() => displayText("be the biggest"), 1);
 
 addEventListeners(canvas);
 
 const res = new Float32Array([canvas.width, canvas.height]);
-
 const initialPlayerProps = [0.0, 0.0, START_SIZE, 0.0];
-const player: Circle = {
-  index: 0,
-  radius: START_SIZE,
-  vel: new Float32Array([0.0, 0.0]),
-  acc: new Float32Array([0.0, 0.0]),
-  color: new Float32Array([1.0, 1.0, 1.0, 1.0]),
-  animation: {
-    startTime: 0,
-    endTime: 0,
-    startValue: START_SIZE,
-    endValue: START_SIZE,
-    currentValue: START_SIZE,
-  },
-};
+const player: Circle = newCircleProps(0, START_SIZE, new Float32Array([0, 0]));
 
 const camera: Camera = {
   props: new Float32Array([0.0, 0.0, 0.0, 0.0]),
@@ -178,7 +169,7 @@ function handleInput() {
 function velSizeFactor(size: number): number {
   if (size === 0) return 1.0;
   const ratio = START_SIZE / size;
-  return lerp(0.15, 1.0, ratio);
+  return lerp(0.75, 1.0, ratio);
 }
 
 function resize() {
@@ -197,7 +188,14 @@ function resize() {
 }
 
 function resetLevel() {
-  player.radius = START_SIZE;
+  const playerCircleProps = newCircleProps(
+    0,
+    START_SIZE,
+    new Float32Array([0, 0])
+  );
+
+  updateCircleWithProps(player, playerCircleProps);
+
   circleProps.set([...initialPlayerProps], 0);
 
   circles.push(player);
@@ -224,21 +222,47 @@ function resetLevel() {
         randomFloatBetween(MIN_CIRCLE_START_VEL, MAX_CIRCLE_START_VEL),
     ]);
 
-    circles.push({
-      index: i,
-      vel: vel,
-      acc: new Float32Array([0, 0]),
-      color: new Float32Array([1.0, 1.0, 1.0, 1.0]),
-      radius: radius,
-      animation: {
-        startTime: 0,
-        endTime: 0,
-        startValue: START_SIZE,
-        endValue: START_SIZE,
-        currentValue: START_SIZE,
-      },
-    });
+    circles.push(newCircleProps(i, radius, vel));
   }
+
+  let boostLimitCount = 0;
+  while (playerIsTooSmall() && boostLimitCount < START_SIZE_BOOST_LIMIT_COUNT) {
+    boostLimitCount++;
+    player.radius += START_SIZE_BOOST;
+    circleProps[0 + 2] = player.radius;
+  }
+
+  if (boostLimitCount >= START_SIZE_BOOST_LIMIT_COUNT) {
+    console.warn("HIT BOOST LIMIT COUNT");
+  } else {
+    console.log(`Boosted ${boostLimitCount} times...`);
+  }
+}
+
+function updateCircleWithProps(circle: Circle, props: Circle) {
+  circle.index = circle.index;
+  circle.radius = props.radius;
+  circle.color = props.color;
+  circle.vel = props.vel;
+  circle.acc = props.acc;
+  circle.animation = props.animation;
+}
+
+function newCircleProps(i: number, radius: number, vel: Float32Array) {
+  return {
+    index: i,
+    vel: vel,
+    acc: new Float32Array([0, 0]),
+    color: new Float32Array([1.0, 1.0, 1.0, 1.0]),
+    radius: radius,
+    animation: {
+      startTime: 0,
+      endTime: 0,
+      startValue: radius,
+      endValue: radius,
+      currentValue: radius,
+    },
+  };
 }
 
 function updateCameraPosition() {
@@ -271,8 +295,8 @@ function playAudio() {
   // }
 }
 
-function startGame() {
-  if (!gameState.started) {
+function startGame(t: number) {
+  if (!gameState.started && t > gameState.readyToTryAgainAt) {
     if (
       inputState.up ||
       inputState.right ||
@@ -281,23 +305,34 @@ function startGame() {
     ) {
       gameState.started = true;
       if (gameState.gameOver) resetLevel();
+      if (gameState.levelWon) resetLevel();
       gameState.gameOver = false;
-      hideText();
+      gameState.levelWon = false;
+      hideText(1000);
       goToLevel(1);
     }
   }
 }
 
-function gameOver() {
+function gameOverTooSmall(t: number) {
+  gameOver(t, "game over you are too small");
+}
+
+function gameOverAbsorbed(t: number) {
+  gameOver(t, "game over you were absorbed");
+}
+
+function gameOver(t: number, text: string) {
   gameState.gameOver = true;
   gameState.started = false;
-  displayText("game over you were absorbed");
+  gameState.readyToTryAgainAt = t + RESTART_TIME;
+  resetInput();
+  displayText(text);
 }
 
 function goToLevel(levelNumber: number) {
   gameState.level = 1;
-  displayText("be the biggest", 1500);
-  setTimeout(() => hideText(), 3000);
+  displayText("be the biggest");
 }
 
 // https://www.growingwiththeweb.com/2017/12/fast-simple-js-fps-counter.html
@@ -314,16 +349,26 @@ function updateFps() {
 function tick(t: number) {
   requestAnimationFrame(tick);
   resize();
-  startGame();
+  startGame(t);
 
   if (gameState.started || (!gameState.started && gameState.gameOver)) {
+    // TODO: don't allow input from player when game has been won
     handleInput();
     updateCircles(t);
+
+    if (!gameState.levelWon && !gameState.gameOver && playerIsBiggest()) {
+      won(t);
+    }
+
+    // if (!gameState.levelWon && !gameState.gameOver && playerIsTooSmall()) {
+    //   gameOverTooSmall(t);
+    // }
   }
 
   playAudio();
   updateCameraPosition();
   checkCollisions(t);
+
   draw(t);
   updateFps();
 }
@@ -357,7 +402,8 @@ function checkCollisions(t: number) {
       // }
 
       if (intersects) {
-        circleColorProps[i + 3] = 1.0;
+        const smallerIndex = r1 < r2 ? i : j;
+        circleColorProps[smallerIndex + 3] = 1.0;
 
         // circles[absorberIndex].animation.startTime = t;
         // circles[absorberIndex].animation.endTime = t + GROW_TIME;
@@ -398,12 +444,14 @@ function checkCollisions(t: number) {
         absorbeeCircle = circles[iCircleIndex];
       }
 
+      // TODO: don't forget to remove absorbercircle
+      // if (absorbed && absorberCircle === player) {
       if (absorbed) {
         circles[absorberIndex].animation.startTime = t;
         circles[absorberIndex].animation.endTime = t + GROW_TIME;
         circles[absorberIndex].animation.startValue =
           circleProps[absorberIndexProps + 2];
-        absorberCircle.radius += absorbeeCircle.radius / 4;
+        grow(absorberCircle, absorbeeCircle);
         circles[absorberIndex].animation.endValue = absorberCircle.radius;
 
         circles[absorbeeIndex].animation.startTime = t;
@@ -413,11 +461,74 @@ function checkCollisions(t: number) {
         absorbeeCircle.radius = 0;
         circles[absorbeeIndex].animation.endValue = absorbeeCircle.radius;
 
-        if (absorbeeIndex === 0) gameOver();
+        if (absorbeeIndex === 0) gameOverAbsorbed(t);
+
+        if (!gameState.levelWon && !gameState.gameOver && playerIsTooSmall()) {
+          gameOverTooSmall(t);
+        }
+
         // stopSoundBankFunction("absorbed", 2);
       }
     }
   }
+}
+
+function grow(absorberCircle: Circle, absorbeeCircle: Circle) {
+  absorberCircle.radius = calculateGrowthRadius(
+    absorberCircle.radius,
+    absorbeeCircle.radius
+  );
+}
+
+function calculateGrowthRadius(
+  absorberCircleRadius: number,
+  absorbeeCircleRadius: number
+): number {
+  return absorberCircleRadius + absorbeeCircleRadius / 8;
+}
+
+function won(t: number) {
+  console.log("WON");
+  gameState.levelWon = true;
+  gameState.readyToTryAgainAt = t + RESTART_TIME;
+  resetInput();
+  displayText("universe 1 of 4 absorbed press key");
+}
+
+// let displayedOnce = false;
+const radiusSort = (a: Circle, b: Circle) => a.radius - b.radius;
+function playerIsTooSmall(): boolean {
+  let playerIsTooSmall = false;
+  // TODO: !!! expensive
+  const sortedCircles = [...circles].sort(radiusSort);
+  let theoPlayerRadius = player.radius;
+
+  for (let i = 0; i < sortedCircles.length; i++) {
+    const circle = sortedCircles[i];
+    if (circle === player) continue;
+    if (circle.radius === 0) continue;
+
+    if (theoPlayerRadius < circle.radius) {
+      playerIsTooSmall = true;
+      break;
+    }
+
+    theoPlayerRadius = calculateGrowthRadius(theoPlayerRadius, circle.radius);
+  }
+
+  return playerIsTooSmall;
+}
+
+function playerIsBiggest(): boolean {
+  let isPlayerTheBiggest = true;
+  const playerRadius = player.radius;
+  for (let i = 1; i < circles.length; i++) {
+    const otherCircleRadius = circles[i].radius;
+    isPlayerTheBiggest = playerRadius > otherCircleRadius;
+    if (!isPlayerTheBiggest) break;
+  }
+
+  return isPlayerTheBiggest;
 }
 
 function draw(t: number) {
@@ -524,6 +635,7 @@ function accelerationForCircleVelocity(v: number): number {
   return v === 0 ? MOVING_ACC : Math.sign(v) * MOVING_ACC;
 }
 
+// TODO: Add AI to go after circles?
 function updateCircles(t: number) {
   for (let i = 0; i < circles.length; i++) {
     const circle = circles[i];

@@ -12,10 +12,6 @@ window.addEventListener("keydown", (e: KeyboardEvent) => {
     case "ArrowDown":
       inputState.down = true;
       break;
-    case "s":
-      inputState.s = true;
-      console.log("meow down");
-      break;
   }
 });
 
@@ -32,10 +28,6 @@ window.addEventListener("keyup", (e: KeyboardEvent) => {
       break;
     case "ArrowDown":
       inputState.down = false;
-      break;
-    case "s":
-      inputState.s = false;
-      console.log("meow up");
       break;
   }
 });
@@ -56,8 +48,14 @@ export const inputState: InputState = {
   right: false,
   up: false,
   down: false,
-  s: false,
 };
+
+export function resetInput() {
+  inputState.left = false;
+  inputState.right = false;
+  inputState.up = false;
+  inputState.down = false;
+}
 
 function touchPressed(e: TouchEvent) {
   e.preventDefault();
@@ -134,5 +132,4 @@ interface InputState {
   right: boolean;
   up: boolean;
   down: boolean;
-  s: boolean;
 }

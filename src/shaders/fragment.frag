@@ -1,5 +1,5 @@
 #version 100
-#define NUM_CIRCLES 70
+#define NUM_CIRCLES 25
 #define PI 3.14159
 #define NUM_LAYERS 3.
 
@@ -139,7 +139,7 @@ void main() {
     float scale = mix(10.0,0.5, i);
     uv2 += uCameraProps.xy * i;
     color += vec4(starLayer(uv2 * scale + i*25.),1.);
-  }
+  } 
 
   // Draw box border
   float boxDist = sdBox(-st - uCameraProps.xy, vec2(uBorder, uBorder));
@@ -148,12 +148,12 @@ void main() {
 
   float d = 999.0;
 
-  // Draw circles
   for (int i = 0; i < NUM_CIRCLES; i++) {
     if (uCircleProps[i].z <= 0.0) continue;
     float d2 = circleDist(uCircleProps[i].xy - st - uCameraProps.xy, uCircleProps[i].z);
+    color = mix(vec4(1., 1., 1., 1.), color, strokeBoth(d2, .01, CIRCLE_FUZZ));
     d = smin(d2, d, BEND2);
-    
+
     if (uCircleColorProps[i].w == 1.0) {
       color = mix(vec4(.9, 0.0, 0.8, 1.), color, strokeBoth(d2, .01, CIRCLE_FUZZ));
     }
