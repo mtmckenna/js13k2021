@@ -7,7 +7,12 @@ import {
   GameState,
   LevelProps,
 } from "./types";
-import { inputState, addEventListeners, resetInput } from "./input";
+import {
+  anyInputPressed,
+  inputState,
+  addEventListeners,
+  resetInput,
+} from "./input";
 
 import {
   clamp,
@@ -60,6 +65,7 @@ const times: number[] = [];
 let fps;
 
 const gameState: GameState = {
+  audio: true,
   started: false,
   currentLevel: 1,
   gameOver: false,
@@ -96,13 +102,13 @@ const levelBox = document.createElement("div");
 levelBox.classList.add("ui");
 levelBox.id = "level";
 document.body.appendChild(levelBox);
-levelBox.innerText = "level 1 of 4";
+levelBox.innerText = levelText();
 
 const audioBox = document.createElement("div");
 audioBox.classList.add("ui");
 audioBox.id = "audio";
 document.body.appendChild(audioBox);
-audioBox.innerText = "audio on";
+audioBox.innerText = audioText();
 
 setTimeout(() => displayText("be the biggest"), 1);
 
@@ -218,7 +224,7 @@ function getLevelProps(): LevelProps {
 }
 
 function nextLevel() {
-  if (gameState.currentLevel == levelPropMap.length - 1) {
+  if (gameState.currentLevel == levelPropMap.length) {
     console.log(
       "YOU WON THE WHOLE THING",
       gameState.currentLevel,
@@ -235,6 +241,9 @@ function nextLevel() {
 }
 
 function resetLevel() {
+  hideText(1000);
+  gameState.levelWon = false;
+  gameState.gameOver = false;
   const levelProps = getLevelProps();
   const { borderSize, numCircles } = levelProps;
   console.log("RESET LEVEL ", gameState.currentLevel);
@@ -322,6 +331,15 @@ function newCircleProps(i: number, radius: number, vel: Float32Array) {
   };
 }
 
+function levelText(): string {
+  return `level ${gameState.currentLevel} of ${levelPropMap.length}`;
+}
+
+function audioText(): string {
+  const onOff = gameState.audio ? "on" : "off";
+  return `audio ${onOff}`;
+}
+
 function updateCameraPosition() {
   camera.props[0] = circleProps[player.index + 0];
   camera.props[1] = circleProps[player.index + 1];
@@ -359,22 +377,10 @@ function startGame(t: number) {
     !gameState.started || (gameState.started && gameState.levelWon);
 
   if (unstarted && t > gameState.readyToTryAgainAt) {
-    if (
-      inputState.up ||
-      inputState.right ||
-      inputState.down ||
-      inputState.left
-    ) {
+    if (anyInputPressed()) {
       gameState.started = true;
       if (gameState.gameOver) resetLevel();
-      if (gameState.levelWon && !gameState.gameWon) {
-        console.log("LEVEL WON");
-        nextLevel();
-      }
-      gameState.gameOver = false;
-      gameState.levelWon = false;
-      hideText(1000);
-      displayText("be the biggest");
+      if (gameState.levelWon && !gameState.gameWon) nextLevel();
     }
   }
 }
@@ -431,6 +437,19 @@ function tick(t: number) {
 
   draw(t);
   updateFps();
+  updateUi();
+}
+
+function updateUi() {
+  const currentAudioText = audioBox.textContent;
+  const updatedAudioText = audioText();
+  if (currentAudioText !== updatedAudioText)
+    audioBox.innerText = updatedAudioText;
+
+  const currentLevelText = levelBox.textContent;
+  const updatedLevelText = levelText();
+  if (currentLevelText !== updatedLevelText)
+    levelBox.innerText = updatedLevelText;
 }
 
 resetLevel();
@@ -550,9 +569,20 @@ function won(t: number) {
   gameState.levelWon = true;
   gameState.readyToTryAgainAt = t + RESTART_TIME;
   resetInput();
-  displayText(
-    `${gameState.currentLevel} of ${levelPropMap.length} complete<br />press key`
-  );
+
+  if (gameState.currentLevel == levelPropMap.length) {
+    console.log(
+      "YOU WON THE WHOLE THING",
+      gameState.currentLevel,
+      levelPropMap.length
+    );
+    gameState.gameWon = true;
+    displayText("absorption complete<br />good job");
+  } else {
+    displayText(
+      `${gameState.currentLevel} of ${levelPropMap.length} complete<br />press key`
+    );
+  }
 }
 
 // let displayedOnce = false;

@@ -45,4 +45,5 @@ export interface GameState {
   levelWon: boolean;
   dimensions: { width: number; height: number };
   readyToTryAgainAt: number;
+  audio: boolean;
 }
