@@ -41,6 +41,7 @@ export interface GameState {
   started: boolean;
   currentLevel: number;
   gameOver: boolean;
+  gameWon: boolean;
   levelWon: boolean;
   dimensions: { width: number; height: number };
   readyToTryAgainAt: number;

@@ -63,6 +63,7 @@ const gameState: GameState = {
   started: false,
   currentLevel: 1,
   gameOver: false,
+  gameWon: false,
   levelWon: false,
   dimensions: { width: -1, height: -1 },
   readyToTryAgainAt: 0,
@@ -90,6 +91,19 @@ document.body.appendChild(fpsBox);
 const textBox = document.createElement("div");
 textBox.classList.add("text");
 document.body.appendChild(textBox);
+
+const levelBox = document.createElement("div");
+levelBox.classList.add("ui");
+levelBox.id = "level";
+document.body.appendChild(levelBox);
+levelBox.innerText = "level 1 of 4";
+
+const audioBox = document.createElement("div");
+audioBox.classList.add("ui");
+audioBox.id = "audio";
+document.body.appendChild(audioBox);
+audioBox.innerText = "audio on";
+
 setTimeout(() => displayText("be the biggest"), 1);
 
 addEventListeners(canvas);
@@ -204,19 +218,20 @@ function getLevelProps(): LevelProps {
 }
 
 function nextLevel() {
-  if (gameState.currentLevel >= levelPropMap.length) {
+  if (gameState.currentLevel == levelPropMap.length - 1) {
     console.log(
       "YOU WON THE WHOLE THING",
       gameState.currentLevel,
       levelPropMap.length
     );
+    gameState.gameWon = true;
+    displayText("absorption complete<br />good job");
   } else {
     console.log(gameState.currentLevel);
     gameState.currentLevel++;
     console.log(gameState.currentLevel);
+    resetLevel();
   }
-
-  resetLevel();
 }
 
 function resetLevel() {
@@ -352,7 +367,7 @@ function startGame(t: number) {
     ) {
       gameState.started = true;
       if (gameState.gameOver) resetLevel();
-      if (gameState.levelWon) {
+      if (gameState.levelWon && !gameState.gameWon) {
         console.log("LEVEL WON");
         nextLevel();
       }
@@ -396,14 +411,18 @@ function tick(t: number) {
   resize();
   startGame(t);
 
-  if (gameState.started || (!gameState.started && gameState.gameOver)) {
+  const playerLost = !gameState.started && gameState.gameOver;
+  if (gameState.started || playerLost) {
     handleInput();
     updateCircles(t);
 
-    if (!gameState.levelWon && !gameState.gameOver && playerIsBiggest()) {
+    if (
+      !gameState.gameWon &&
+      !gameState.levelWon &&
+      !gameState.gameOver &&
+      playerIsBiggest()
+    )
       won(t);
-      // gameState.currentLevel = 2;
-    }
   }
 
   playAudio();
