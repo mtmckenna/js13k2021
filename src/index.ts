@@ -492,7 +492,7 @@ function won(t: number) {
   gameState.levelWon = true;
   gameState.readyToTryAgainAt = t + RESTART_TIME;
   resetInput();
-  displayText("universe 1 of 4 absorbed press key");
+  displayText("1 of 4 complete<br />press key");
 }
 
 // let displayedOnce = false;
@@ -745,7 +745,7 @@ function getCanvasHeight(canvas) {
 
 function displayText(text, delay = 0) {
   setTimeout(() => {
-    textBox.innerText = text;
+    textBox.innerHTML = text;
     textBox.style.opacity = "1.0";
   }, delay);
 }
