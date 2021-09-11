@@ -50,12 +50,6 @@ export const inputState: InputState = {
   down: false,
 };
 
-export function anyInputPressed() {
-  return (
-    inputState.up || inputState.right || inputState.down || inputState.left
-  );
-}
-
 export function resetInput() {
   inputState.left = false;
   inputState.right = false;
@@ -127,7 +121,7 @@ function preventDefault(e: TouchEvent) {
   e.stopPropagation();
 }
 
-function anyInputPressed() {
+export function anyInputPressed() {
   return (
     inputState.up || inputState.right || inputState.down || inputState.left
   );
