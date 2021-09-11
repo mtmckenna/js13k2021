@@ -122,11 +122,10 @@ void main() {
   vec4 color = colorInside;
 
   // Draw difference between inside and outside borders
-  // TODO: might be able to drop smoothstep now...
-  float top = smoothstep(uBorder - WALL_FUZZ, uBorder + WALL_FUZZ, (st + uCameraProps.xy).y);
-  float right = smoothstep(uBorder - WALL_FUZZ, uBorder + WALL_FUZZ, (st + uCameraProps.xy).x);
-  float bottom = smoothstep(-uBorder - WALL_FUZZ, -uBorder + WALL_FUZZ, (st + uCameraProps.xy).y);
-  float left = smoothstep(-uBorder - WALL_FUZZ, -uBorder + WALL_FUZZ, (st + uCameraProps.xy).x);
+  float top = step(uBorder, (st + uCameraProps.xy).y);
+  float right = step(uBorder, (st + uCameraProps.xy).x);
+  float bottom = step(-uBorder, (st + uCameraProps.xy).y);
+  float left = step(-uBorder, (st + uCameraProps.xy).x);
 
   color = mix(color, colorOutside, top);
   color = mix(color, colorOutside, right);
