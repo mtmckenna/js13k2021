@@ -37,12 +37,24 @@ export function randomSign(): number {
   return Math.random() < 0.5 ? -1 : 1;
 }
 
-// export function lerp(out, a, b, t) {
-//   let ax = a[0];
-//   let ay = a[1];
-//   let az = a[2];
-//   out[0] = ax + t * (b[0] - ax);
-//   out[1] = ay + t * (b[1] - ay);
-//   out[2] = az + t * (b[2] - az);
-//   return out;
+export function randomNormalFloatBetween(min: number, max: number) {
+  return Math.abs(randomNormals(Math.random)) * (max - min) + min;
+}
+
+// export function randomNormalFloatBetween(min: number, max: number) {
+//   // const mean = (max - min) / 2;
+//   return randomNormals(Math.random) * (max - min) + min;
 // }
+
+// https://spin.atomicobject.com/2019/09/30/skew-normal-prng-javascript/
+export function randomNormals(rng) {
+  let u1 = 0,
+    u2 = 0;
+  //Convert [0,1) to (0,1)
+  while (u1 === 0) u1 = rng();
+  while (u2 === 0) u2 = rng();
+  const R = Math.sqrt(-2.0 * Math.log(u1));
+  const Θ = 2.0 * Math.PI * u2;
+  // return [R * Math.cos(Θ), R * Math.sin(Θ)];
+  return R * Math.cos(Θ);
+}

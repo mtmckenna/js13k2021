@@ -21,6 +21,11 @@ export interface Circle {
   animation: Animation;
 }
 
+export interface LevelProps {
+  borderSize: number;
+  numCircles: number;
+}
+
 export interface GameProgramCache extends ProgramCache {
   uniforms: {
     uRes: WebGLUniformLocation | null;
@@ -34,7 +39,7 @@ export interface GameProgramCache extends ProgramCache {
 
 export interface GameState {
   started: boolean;
-  level: number;
+  currentLevel: number;
   gameOver: boolean;
   levelWon: boolean;
   dimensions: { width: number; height: number };

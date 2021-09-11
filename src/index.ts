@@ -1,6 +1,12 @@
 import { GlslShader } from "webpack-glsl-minify";
 import { compiledProgram, configureBuffer } from "./webgl-helpers";
-import { Camera, Circle, GameProgramCache, GameState } from "./types";
+import {
+  Camera,
+  Circle,
+  GameProgramCache,
+  GameState,
+  LevelProps,
+} from "./types";
 import { inputState, addEventListeners, resetInput } from "./input";
 
 import {
@@ -9,7 +15,9 @@ import {
   lerp,
   lerpVec3,
   randomFloatBetween,
+  randomNormalFloatBetween,
   randomSign,
+  randomNormals,
 } from "./math-helpers";
 
 import {
@@ -51,16 +59,19 @@ let MAX_CIRCLE_START_VEL = 0.002;
 const times: number[] = [];
 let fps;
 
-let borderSize = 2.0;
-
 const gameState: GameState = {
   started: false,
-  level: 0,
+  currentLevel: 1,
   gameOver: false,
   levelWon: false,
   dimensions: { width: -1, height: -1 },
   readyToTryAgainAt: 0,
 };
+
+const levelPropMap: Array<LevelProps> = [
+  { borderSize: 2.0, numCircles: 25 },
+  { borderSize: 0.5, numCircles: 3 },
+];
 
 const circleProps = new Float32Array(NUM_CIRCLES * 4);
 const circleColorProps = new Float32Array(NUM_CIRCLES * 4).fill(0.0);
@@ -187,10 +198,32 @@ function resize() {
   gameState.dimensions.height = height;
 }
 
+function getLevelProps(): LevelProps {
+  const { currentLevel } = gameState;
+  return levelPropMap[currentLevel - 1];
+}
+
+function nextLevel() {
+  if (gameState.currentLevel >= levelPropMap.length) {
+    console.log(
+      "YOU WON THE WHOLE THING",
+      gameState.currentLevel,
+      levelPropMap.length
+    );
+  } else {
+    console.log("going to next level");
+    gameState.currentLevel++;
+  }
+
+  resetLevel();
+}
+
 function resetLevel() {
+  const levelProps = getLevelProps();
+  const { borderSize, numCircles } = levelProps;
   const playerCircleProps = newCircleProps(
     0,
-    START_SIZE,
+    (MAX_CIRCLE_SIZE - MIN_CIRCLE_SIZE) / 2,
     new Float32Array([0, 0])
   );
 
@@ -198,9 +231,15 @@ function resetLevel() {
 
   circleProps.set([...initialPlayerProps], 0);
 
+  circles.length = 0;
   circles.push(player);
   for (let i = 1; i < NUM_CIRCLES; i++) {
-    const radius = randomFloatBetween(MIN_CIRCLE_SIZE, MAX_CIRCLE_SIZE);
+    // const radius = randomFloatBetween(MIN_CIRCLE_SIZE, MAX_CIRCLE_SIZE);
+    const radius =
+      i < numCircles
+        ? randomNormalFloatBetween(MIN_CIRCLE_SIZE, MAX_CIRCLE_SIZE)
+        : 0;
+    // console.log(radius2);
 
     circleProps[i * 4 + 0] = randomFloatBetween(
       -borderSize + radius,
@@ -270,6 +309,8 @@ function updateCameraPosition() {
   camera.props[1] = circleProps[player.index + 1];
 
   // stop camera at border
+  const levelProps = getLevelProps();
+  const { borderSize } = levelProps;
   if (camera.props[0] < -borderSize) camera.props[0] = -borderSize;
   if (camera.props[0] > borderSize) camera.props[0] = borderSize;
   if (camera.props[1] < -borderSize) camera.props[1] = -borderSize;
@@ -296,7 +337,10 @@ function playAudio() {
 }
 
 function startGame(t: number) {
-  if (!gameState.started && t > gameState.readyToTryAgainAt) {
+  const unstarted =
+    !gameState.started || (gameState.started && gameState.levelWon);
+
+  if (unstarted && t > gameState.readyToTryAgainAt) {
     if (
       inputState.up ||
       inputState.right ||
@@ -305,7 +349,7 @@ function startGame(t: number) {
     ) {
       gameState.started = true;
       if (gameState.gameOver) resetLevel();
-      if (gameState.levelWon) resetLevel();
+      if (gameState.levelWon) nextLevel();
       gameState.gameOver = false;
       gameState.levelWon = false;
       hideText(1000);
@@ -315,11 +359,11 @@ function startGame(t: number) {
 }
 
 function gameOverTooSmall(t: number) {
-  gameOver(t, "game over you are too small");
+  gameOver(t, "you are too small<br />try again");
 }
 
 function gameOverAbsorbed(t: number) {
-  gameOver(t, "game over you were absorbed");
+  gameOver(t, "you were absorbed<br />try again");
 }
 
 function gameOver(t: number, text: string) {
@@ -331,7 +375,7 @@ function gameOver(t: number, text: string) {
 }
 
 function goToLevel(levelNumber: number) {
-  gameState.level = 1;
+  gameState.currentLevel = 1;
   displayText("be the biggest");
 }
 
@@ -359,10 +403,6 @@ function tick(t: number) {
     if (!gameState.levelWon && !gameState.gameOver && playerIsBiggest()) {
       won(t);
     }
-
-    // if (!gameState.levelWon && !gameState.gameOver && playerIsTooSmall()) {
-    //   gameOverTooSmall(t);
-    // }
   }
 
   playAudio();
@@ -563,6 +603,8 @@ function draw(t: number) {
   ctx.uniform4fv(programInfo.uniforms.uCameraProps, camera.props);
 
   //////////////// border props
+  const levelProps = getLevelProps();
+  const { borderSize } = levelProps;
   ctx.uniform1f(programInfo.uniforms.uBorder, borderSize);
 
   //////////////// circle props
@@ -635,89 +677,99 @@ function accelerationForCircleVelocity(v: number): number {
   return v === 0 ? MOVING_ACC : Math.sign(v) * MOVING_ACC;
 }
 
+function updateCircleVelocity(circle: Circle) {
+  if (circle.radius === 0) return;
+  const levelProps = getLevelProps();
+  const { borderSize } = levelProps;
+  const sizeFactor = velSizeFactor(circle.radius);
+
+  if (circle.index !== player.index) {
+    const xAcc = accelerationForCircleVelocity(circle.vel[0]);
+    const yAcc = accelerationForCircleVelocity(circle.vel[1]);
+
+    circle.acc[0] += clamp(xAcc, -MAX_ACC, MAX_ACC);
+    circle.acc[1] += clamp(yAcc, -MAX_ACC, MAX_ACC);
+  }
+
+  const maxVel =
+    circle.index === player.index ? MAX_VEL : MAX_VEL_OTHER_CIRCLES;
+
+  circle.vel[0] = clamp(
+    (circle.vel[0] + circle.acc[0]) * FRICTION,
+    -maxVel * sizeFactor,
+    maxVel * sizeFactor
+  );
+  circle.vel[1] = clamp(
+    (circle.vel[1] + circle.acc[1]) * FRICTION,
+    -maxVel * sizeFactor,
+    maxVel * sizeFactor
+  );
+
+  // Update position
+  circleProps[circle.index * 4 + 0] += circle.vel[0];
+  circleProps[circle.index * 4 + 1] += circle.vel[1];
+
+  // Left border
+  if (
+    circleProps[circle.index * 4 + 0] - circleProps[circle.index * 4 + 2] <=
+    -borderSize
+  ) {
+    circleProps[circle.index * 4 + 0] = Math.max(
+      -borderSize + circleProps[circle.index * 4 + 2],
+      circleProps[circle.index * 4 + 0]
+    );
+    circle.vel[0] = Math.abs(circle.vel[0]);
+    circle.acc[0] = Math.abs(circle.acc[0]);
+  }
+
+  // Right border
+  if (
+    circleProps[circle.index * 4 + 0] + circleProps[circle.index * 4 + 2] >=
+    borderSize
+  ) {
+    circleProps[circle.index * 4 + 0] = Math.min(
+      borderSize - circleProps[circle.index * 4 + 2],
+      circleProps[circle.index * 4 + 0]
+    );
+    circle.vel[0] = -Math.abs(circle.vel[0]);
+    circle.acc[0] = -Math.abs(circle.acc[0]);
+  }
+
+  // Top border
+  if (
+    circleProps[circle.index * 4 + 1] + circleProps[circle.index * 4 + 2] >=
+    borderSize
+  ) {
+    circleProps[circle.index * 4 + 1] = Math.min(
+      borderSize - circleProps[circle.index * 4 + 2],
+      circleProps[circle.index * 4 + 1]
+    );
+    circle.vel[1] = -Math.abs(circle.vel[1]);
+    circle.acc[1] = -Math.abs(circle.acc[1]);
+  }
+
+  // Bottom border
+  if (
+    circleProps[circle.index * 4 + 1] - circleProps[circle.index * 4 + 2] <=
+    -borderSize
+  ) {
+    circleProps[circle.index * 4 + 1] = Math.max(
+      -borderSize + circleProps[circle.index * 4 + 2],
+      circleProps[circle.index * 4 + 1]
+    );
+    circle.vel[1] = Math.abs(circle.vel[1]);
+    circle.acc[1] = Math.abs(circle.acc[1]);
+  }
+}
+
 // TODO: Add AI to go after circles?
 function updateCircles(t: number) {
+  // const levelProps = getLevelProps();
+  // const { borderSize } = levelProps;
   for (let i = 0; i < circles.length; i++) {
     const circle = circles[i];
 
-    const sizeFactor = velSizeFactor(circle.radius);
-
-    if (i !== player.index) {
-      const xAcc = accelerationForCircleVelocity(circle.vel[0]);
-      const yAcc = accelerationForCircleVelocity(circle.vel[1]);
-
-      circle.acc[0] += clamp(xAcc, -MAX_ACC, MAX_ACC);
-      circle.acc[1] += clamp(yAcc, -MAX_ACC, MAX_ACC);
-    }
-
-    const maxVel = i === player.index ? MAX_VEL : MAX_VEL_OTHER_CIRCLES;
-
-    circle.vel[0] = clamp(
-      (circle.vel[0] + circle.acc[0]) * FRICTION,
-      -maxVel * sizeFactor,
-      maxVel * sizeFactor
-    );
-    circle.vel[1] = clamp(
-      (circle.vel[1] + circle.acc[1]) * FRICTION,
-      -maxVel * sizeFactor,
-      maxVel * sizeFactor
-    );
-
-    // Update position
-    circleProps[circle.index * 4 + 0] += circle.vel[0];
-    circleProps[circle.index * 4 + 1] += circle.vel[1];
-
-    // Left border
-    if (
-      circleProps[circle.index * 4 + 0] - circleProps[circle.index * 4 + 2] <=
-      -borderSize
-    ) {
-      circleProps[circle.index * 4 + 0] = Math.max(
-        -borderSize + circleProps[circle.index * 4 + 2],
-        circleProps[circle.index * 4 + 0]
-      );
-      circle.vel[0] = Math.abs(circle.vel[0]);
-      circle.acc[0] = Math.abs(circle.acc[0]);
-    }
-
-    // Right border
-    if (
-      circleProps[circle.index * 4 + 0] + circleProps[circle.index * 4 + 2] >=
-      borderSize
-    ) {
-      circleProps[circle.index * 4 + 0] = Math.min(
-        borderSize - circleProps[circle.index * 4 + 2],
-        circleProps[circle.index * 4 + 0]
-      );
-      circle.vel[0] = -Math.abs(circle.vel[0]);
-      circle.acc[0] = -Math.abs(circle.acc[0]);
-    }
-
-    // Top border
-    if (
-      circleProps[circle.index * 4 + 1] + circleProps[circle.index * 4 + 2] >=
-      borderSize
-    ) {
-      circleProps[circle.index * 4 + 1] = Math.min(
-        borderSize - circleProps[circle.index * 4 + 2],
-        circleProps[circle.index * 4 + 1]
-      );
-      circle.vel[1] = -Math.abs(circle.vel[1]);
-      circle.acc[1] = -Math.abs(circle.acc[1]);
-    }
-
-    // Bottom border
-    if (
-      circleProps[circle.index * 4 + 1] - circleProps[circle.index * 4 + 2] <=
-      -borderSize
-    ) {
-      circleProps[circle.index * 4 + 1] = Math.max(
-        -borderSize + circleProps[circle.index * 4 + 2],
-        circleProps[circle.index * 4 + 1]
-      );
-      circle.vel[1] = Math.abs(circle.vel[1]);
-      circle.acc[1] = Math.abs(circle.acc[1]);
-    }
+    updateCircleVelocity(circle);
 
     // Update grow animation
     if (circle.animation.startTime > 0) {
