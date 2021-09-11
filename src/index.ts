@@ -69,8 +69,8 @@ const gameState: GameState = {
 };
 
 const levelPropMap: Array<LevelProps> = [
-  { borderSize: 2.0, numCircles: 25 },
-  { borderSize: 0.5, numCircles: 3 },
+  { borderSize: 1.0, numCircles: 5 },
+  { borderSize: 0.25, numCircles: 3 },
 ];
 
 const circleProps = new Float32Array(NUM_CIRCLES * 4);
@@ -211,8 +211,9 @@ function nextLevel() {
       levelPropMap.length
     );
   } else {
-    console.log("going to next level");
+    console.log(gameState.currentLevel);
     gameState.currentLevel++;
+    console.log(gameState.currentLevel);
   }
 
   resetLevel();
@@ -221,6 +222,8 @@ function nextLevel() {
 function resetLevel() {
   const levelProps = getLevelProps();
   const { borderSize, numCircles } = levelProps;
+  console.log("RESET LEVEL ", gameState.currentLevel);
+  console.log(borderSize, numCircles);
   const playerCircleProps = newCircleProps(
     0,
     (MAX_CIRCLE_SIZE - MIN_CIRCLE_SIZE) / 2,
@@ -349,11 +352,14 @@ function startGame(t: number) {
     ) {
       gameState.started = true;
       if (gameState.gameOver) resetLevel();
-      if (gameState.levelWon) nextLevel();
+      if (gameState.levelWon) {
+        console.log("LEVEL WON");
+        nextLevel();
+      }
       gameState.gameOver = false;
       gameState.levelWon = false;
       hideText(1000);
-      goToLevel(1);
+      displayText("be the biggest");
     }
   }
 }
@@ -374,11 +380,6 @@ function gameOver(t: number, text: string) {
   displayText(text);
 }
 
-function goToLevel(levelNumber: number) {
-  gameState.currentLevel = 1;
-  displayText("be the biggest");
-}
-
 // https://www.growingwiththeweb.com/2017/12/fast-simple-js-fps-counter.html
 function updateFps() {
   const now = performance.now();
@@ -396,12 +397,12 @@ function tick(t: number) {
   startGame(t);
 
   if (gameState.started || (!gameState.started && gameState.gameOver)) {
-    // TODO: don't allow input from player when game has been won
     handleInput();
     updateCircles(t);
 
     if (!gameState.levelWon && !gameState.gameOver && playerIsBiggest()) {
       won(t);
+      // gameState.currentLevel = 2;
     }
   }
 
@@ -484,8 +485,6 @@ function checkCollisions(t: number) {
         absorbeeCircle = circles[iCircleIndex];
       }
 
-      // TODO: don't forget to remove absorbercircle
-      // if (absorbed && absorberCircle === player) {
       if (absorbed) {
         circles[absorberIndex].animation.startTime = t;
         circles[absorberIndex].animation.endTime = t + GROW_TIME;
@@ -528,11 +527,13 @@ function calculateGrowthRadius(
 }
 
 function won(t: number) {
-  console.log("WON");
+  console.log("WON level", gameState.currentLevel);
   gameState.levelWon = true;
   gameState.readyToTryAgainAt = t + RESTART_TIME;
   resetInput();
-  displayText("1 of 4 complete<br />press key");
+  displayText(
+    `${gameState.currentLevel} of ${levelPropMap.length} complete<br />press key`
+  );
 }
 
 // let displayedOnce = false;
@@ -604,7 +605,8 @@ function draw(t: number) {
 
   //////////////// border props
   const levelProps = getLevelProps();
-  const { borderSize } = levelProps;
+  const { borderSize, numCircles } = levelProps;
+  // console.log(borderSize, numCircles);
   ctx.uniform1f(programInfo.uniforms.uBorder, borderSize);
 
   //////////////// circle props
