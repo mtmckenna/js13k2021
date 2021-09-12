@@ -33,6 +33,8 @@ import {
   playBackground,
   stopSound,
   Sound,
+  setVolume,
+  getVolume,
 } from "./audio";
 
 const VERTEX_SHADER = require("./shaders/vertex.vert") as GlslShader;
@@ -41,7 +43,7 @@ const canvas: HTMLCanvasElement = document.createElement("canvas");
 const ctx = canvas.getContext("webgl");
 const MAX_RESOLUTION = 800;
 const MOVING_ACC = 0.0003;
-const OTHER_CIRCLE_SLOWNESS = 0.5;
+const OTHER_CIRCLE_SLOWNESS = 0.35;
 const MAX_VEL = 0.004;
 const MAX_VEL_OTHER_CIRCLES = MAX_VEL * OTHER_CIRCLE_SLOWNESS;
 const MAX_ACC = MOVING_ACC * 1;
@@ -51,6 +53,7 @@ const GROW_TIME = 500;
 const START_SIZE = 0.01;
 const START_SIZE_BOOST = 0.001;
 const START_SIZE_BOOST_LIMIT_COUNT = 200;
+const MOVE_LIMIT_COUNT = 100;
 const RESTART_TIME = 2500;
 
 const circles: Array<Circle> = [];
@@ -76,8 +79,9 @@ const gameState: GameState = {
 };
 
 const levelPropMap: Array<LevelProps> = [
-  { borderSize: 1.0, numCircles: 5 },
+  { borderSize: 1.0, numCircles: 25 },
   { borderSize: 0.25, numCircles: 3 },
+  { borderSize: 0.75, numCircles: 5 },
 ];
 
 const circleProps = new Float32Array(NUM_CIRCLES * 4);
@@ -109,6 +113,16 @@ audioBox.classList.add("ui");
 audioBox.id = "audio";
 document.body.appendChild(audioBox);
 audioBox.innerText = audioText();
+audioBox.addEventListener("click", () => {
+  console.log("click!!");
+  if (getVolume() > 0) {
+    setVolume(0);
+    gameState.audio = false;
+  } else {
+    setVolume(0.5);
+    gameState.audio = true;
+  }
+});
 
 setTimeout(() => displayText("be the biggest"), 1);
 
@@ -246,7 +260,6 @@ function resetLevel() {
   gameState.gameOver = false;
   const levelProps = getLevelProps();
   const { borderSize, numCircles } = levelProps;
-  console.log("RESET LEVEL ", gameState.currentLevel);
   console.log(borderSize, numCircles);
   const playerCircleProps = newCircleProps(
     0,
@@ -255,31 +268,31 @@ function resetLevel() {
   );
 
   updateCircleWithProps(player, playerCircleProps);
-
   circleProps.set([...initialPlayerProps], 0);
 
   circles.length = 0;
   circles.push(player);
   for (let i = 1; i < NUM_CIRCLES; i++) {
-    // const radius = randomFloatBetween(MIN_CIRCLE_SIZE, MAX_CIRCLE_SIZE);
+    // Always generate the max number of circles so we have the same number of circles passed to the shader
+    // but if we have fewer circles in the level, set their radius to zero
     const radius =
       i < numCircles
         ? randomNormalFloatBetween(MIN_CIRCLE_SIZE, MAX_CIRCLE_SIZE)
         : 0;
-    // console.log(radius2);
 
-    circleProps[i * 4 + 0] = randomFloatBetween(
-      -borderSize + radius,
-      borderSize - radius
-    );
+    let x2 = randomFloatBetween(-borderSize + radius, borderSize - radius);
+    let y2 = randomFloatBetween(-borderSize + radius, borderSize - radius);
 
-    circleProps[i * 4 + 1] = randomFloatBetween(
-      -borderSize + radius,
-      borderSize - radius
-    );
+    // // try to avoid overlapping in the beginning
+    // while (checkCircleIntersection(x1, y1, r1, x2, y2, radius)) {
+    //   x2 = randomFloatBetween(-borderSize + radius, borderSize - radius);
+    //   y2 = randomFloatBetween(-borderSize + radius, borderSize - radius);
+    // }
 
+    circleProps[i * 4 + 0] = x2;
+    circleProps[i * 4 + 1] = y2;
     circleProps[i * 4 + 2] = radius;
-    circleProps[i * 4 + 3] = 0;
+    circleProps[i * 4 + 3] = 0; //unused
 
     const vel = new Float32Array([
       randomSign() *
@@ -302,6 +315,38 @@ function resetLevel() {
     console.warn("HIT BOOST LIMIT COUNT");
   } else {
     console.log(`Boosted ${boostLimitCount} times...`);
+  }
+
+  let moveLimitCount = 0;
+  let playerPositionSet = false;
+  let x1 = circleProps[0 + 0];
+  let y1 = initialPlayerProps[0 + 1];
+  let r1 = player.radius;
+
+  while (!playerPositionSet || moveLimitCount > MOVE_LIMIT_COUNT) {
+    playerPositionSet = true;
+    moveLimitCount++;
+    for (let i = 1; i < circles.length; i++) {
+      const circle = circles[i];
+      const x2 = circleProps[i * 4 + 0];
+      const y2 = circleProps[i * 4 + 1];
+      const r2 = circle.radius;
+      if (checkCircleIntersection(x1, y1, r1, x2, y2, r2)) {
+        playerPositionSet = false;
+        x1 = randomFloatBetween(
+          -borderSize + player.radius,
+          borderSize - player.radius
+        );
+        y1 = randomFloatBetween(
+          -borderSize + player.radius,
+          borderSize - player.radius
+        );
+        continue;
+      }
+    }
+
+    circleProps[0 + 0] = x1;
+    circleProps[0 + 1] = y1;
   }
 }
 
@@ -580,7 +625,7 @@ function won(t: number) {
     displayText("absorption complete<br />good job");
   } else {
     displayText(
-      `${gameState.currentLevel} of ${levelPropMap.length} complete<br />press key`
+      `${gameState.currentLevel} of ${levelPropMap.length} complete<br />`
     );
   }
 }

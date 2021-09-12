@@ -79,6 +79,14 @@ const cAm = [A3, C4, G4];
 const cC = [C4, G4, E4, G4];
 const cCmaj7 = [C4, G4, E4];
 
+export function setVolume(value: number) {
+  gain.gain.value = value;
+}
+
+export function getVolume(): number {
+  return gain.gain.value;
+}
+
 export const playMoveChord = () => playChord(cAm);
 export const playAbsorbChord = () => playChord(cC, WAVE_TYPE, 0.25);
 export const playAbsorbedChord = () => playChord(cCmaj7, WAVE_TYPE, 0.25);
