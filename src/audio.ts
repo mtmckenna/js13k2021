@@ -6,24 +6,6 @@ const WAVE_TYPE = "sine";
 let audioContext: null | AudioContext = null;
 let gain: null | GainNode = null;
 
-// let audioContext: null | AudioContext = new (window.AudioContext ||
-//   window.webkitAudioContext)();
-
-// // let audio
-
-// const compressor = audioContext.createDynamicsCompressor();
-// compressor.threshold.setValueAtTime(-24, audioContext.currentTime);
-// compressor.knee.setValueAtTime(30, audioContext.currentTime);
-// compressor.ratio.setValueAtTime(12, audioContext.currentTime);
-// compressor.attack.setValueAtTime(0.003, audioContext.currentTime);
-// compressor.release.setValueAtTime(0.25, audioContext.currentTime);
-// compressor.connect(audioContext.destination);
-
-// let gain: null | GainNode = audioContext.createGain();
-
-// gain.connect(compressor);
-// gain.gain.value = 0.0;
-
 const Al = 233.08;
 const Bf = 246.94;
 const C = 261.63;
