@@ -30,6 +30,7 @@ import {
   playAbsorbChord,
   playAbsorbedChord,
   playBackground,
+  playIntersectChord,
   stopSound,
   Sound,
   setVolume,
@@ -68,7 +69,7 @@ const times: number[] = [];
 let fps;
 
 const gameState: GameState = {
-  audio: false,
+  audio: true,
   started: false,
   currentLevel: 1,
   gameOver: false,
@@ -141,6 +142,7 @@ const soundBank: { [key: string]: Sound | null } = {
   move: null,
   absorb: null,
   absorbed: null,
+  intersect: null,
 };
 
 // prettier-ignore
@@ -397,9 +399,9 @@ function updateCameraPosition() {
 function playAudio() {
   const playerMoved = distance(player.vel[0], player.vel[1], 0, 0);
   if (playerMoved >= MIN_VEL_THRESHOLD) {
-    playSoundBankFunction("move", playMoveChord);
+    // playSoundBankFunction("move", playMoveChord);
   } else {
-    stopSoundBankFunction("move", 0.75);
+    // stopSoundBankFunction("move", 0.75);
   }
 
   // if (inputState.s) {
@@ -499,6 +501,8 @@ requestAnimationFrame(tick);
 function checkCollisions(t: number) {
   circleColorProps.fill(0.0);
   // Cache collision checks?
+  let anyIntersection = false;
+
   for (let i = 0; i < circleProps.length; i += 4) {
     const iCircleIndex = Math.floor(i / 4);
     const iCircle = circles[iCircleIndex];
@@ -525,28 +529,14 @@ function checkCollisions(t: number) {
       if (r1 === 0.0 || r2 === 0.0) continue;
 
       const intersects = checkCircleIntersection(x1, y1, r1, x2, y2, r2);
-      // if (intersects) {
-      //   playSoundBankFunction("absorb", playAbsorbChord);
-      // } else {
-      //   stopSoundBankFunction("absorb");
-      // }
 
       if (intersects) {
         const smallerIndex = r1 < r2 ? i : j;
         circleColorProps[smallerIndex + 3] = 1.0;
 
-        // circles[absorberIndex].animation.startTime = t;
-        // circles[absorberIndex].animation.endTime = t + GROW_TIME;
-        // circles[absorberIndex].animation.startValue =
-        //   circleProps[absorberIndexProps + 2];
-        // absorberCircle.radius += absorbeeCircle.radius / 4;
-        // circles[absorberIndex].animation.endValue = absorberCircle.radius;
-        // circles[absorbeeIndex].animation.startTime = t;
-        // circles[absorbeeIndex].animation.endTime = t + GROW_TIME;
-        // circles[absorbeeIndex].animation.startValue =
-        //   circleProps[absorbeeIndexProps + 2];
-        // absorbeeCircle.radius = 0;
-        // circles[absorbeeIndex].animation.endValue = absorbeeCircle.radius;
+        if (i === player.index || j === player.index) {
+          anyIntersection = true;
+        }
       }
       let absorbed = false;
       let absorberIndex: number = null;
@@ -589,7 +579,9 @@ function checkCollisions(t: number) {
         absorbeeCircle.radius = 0;
         circles[absorbeeIndex].animation.endValue = absorbeeCircle.radius;
 
-        if (absorbeeIndex === 0) gameOverAbsorbed(t);
+        if (absorbeeIndex === 0) {
+          gameOverAbsorbed(t);
+        }
 
         if (!gameState.levelWon && !gameState.gameOver && playerIsTooSmall()) {
           gameOverTooSmall(t);
@@ -598,6 +590,12 @@ function checkCollisions(t: number) {
         // stopSoundBankFunction("absorbed", 2);
       }
     }
+  }
+
+  if (anyIntersection) {
+    playSoundBankFunction("intersect", playIntersectChord);
+  } else {
+    stopSoundBankFunction("intersect");
   }
 }
 
@@ -616,17 +614,11 @@ function calculateGrowthRadius(
 }
 
 function won(t: number) {
-  console.log("WON level", gameState.currentLevel);
   gameState.levelWon = true;
   gameState.readyToTryAgainAt = t + RESTART_TIME;
   resetInput();
 
   if (gameState.currentLevel == levelPropMap.length) {
-    console.log(
-      "YOU WON THE WHOLE THING",
-      gameState.currentLevel,
-      levelPropMap.length
-    );
     gameState.gameWon = true;
     displayText("absorption complete<br />good job");
   } else {
@@ -705,8 +697,7 @@ function draw(t: number) {
 
   //////////////// border props
   const levelProps = getLevelProps();
-  const { borderSize, numCircles } = levelProps;
-  // console.log(borderSize, numCircles);
+  const { borderSize } = levelProps;
   ctx.uniform1f(programInfo.uniforms.uBorder, borderSize);
 
   //////////////// circle props

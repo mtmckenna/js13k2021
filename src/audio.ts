@@ -78,6 +78,7 @@ export const playMove = () => playSequence([A3], [0.0], WAVE_TYPE);
 const cAm = [A3, C4, G4];
 const cC = [C4, G4, E4, G4];
 const cCmaj7 = [C4, G4, E4];
+const cDmin = [D4, F4, A4, C4];
 
 export function setVolume(value: number) {
   gain.gain.value = value;
@@ -90,6 +91,9 @@ export function getVolume(): number {
 export const playMoveChord = () => playChord(cAm);
 export const playAbsorbChord = () => playChord(cC, WAVE_TYPE, 0.25);
 export const playAbsorbedChord = () => playChord(cCmaj7, WAVE_TYPE, 0.25);
+export const playIntersectChord = () => playChord(cAm, WAVE_TYPE, 0.25);
+export const playAbsorbedSequence = () =>
+  playSequence2([cCmaj7], [1.0], WAVE_TYPE, true, 20.0);
 export const playBackground = () =>
   playSequence(
     [A2, C3, A2, C3, A2, C3],
@@ -139,6 +143,49 @@ function playSequence(
   sound.oscillatorNodes = oscillators;
 
   playOscillator(oscillators[0], noteGain, times[0], gainValue);
+  return sound;
+}
+
+function playSequence2(
+  notes: Array<Array<number>>,
+  times: number[],
+  type: OscillatorType,
+  repeat: boolean = false,
+  gainValue: number = 1.0
+): Sound {
+  const noteGain = audioContext.createGain();
+
+  noteGain.connect(gain);
+
+  let sound: Sound = {
+    oscillatorNodes: [],
+    gainNode: noteGain,
+  };
+
+  // playChord
+  // let oscillators: OscillatorNode[] = [];
+  // const lastIndex = notes.length - 1;
+  // notes.forEach((note, index) => {
+  //   let oscillator = audioContext.createOscillator();
+  //   oscillator.connect(noteGain);
+  //   oscillator.type = type || WAVE_TYPE;
+  //   oscillator.frequency.value = note;
+  //   oscillator.onended = () => {
+  //     if (index !== lastIndex) {
+  //       playOscillator(
+  //         oscillators[index + 1],
+  //         noteGain,
+  //         times[index + 1],
+  //         gainValue
+  //       );
+  //     }
+  //   };
+  //   oscillators.push(oscillator);
+  // });
+
+  // sound.oscillatorNodes = oscillators;
+
+  // playOscillator(oscillators[0], noteGain, times[0], gainValue);
   return sound;
 }
 
