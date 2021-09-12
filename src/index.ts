@@ -75,7 +75,7 @@ const gameState: GameState = {
 };
 
 const levelPropMap: Array<LevelProps> = [
-  { borderSize: 0.75, numCircles: 8, radiusMean: 0.01, deviation: 0.03 },
+  { borderSize: 0.75, numCircles: 70, radiusMean: 0.01, deviation: 0.03 },
   { borderSize: 0.25, numCircles: 3, radiusMean: 0.0005, deviation: 0.02 },
   { borderSize: 0.75, numCircles: 15, radiusMean: 0.02, deviation: 0.05 },
 ];
@@ -251,9 +251,14 @@ function nextLevel() {
 
 function resetLevel() {
   hideText(1000);
-  // gameState.started = false;
   gameState.levelWon = false;
   gameState.gameOver = false;
+
+  resetCircles();
+  resetPlayer();
+}
+
+function resetCircles() {
   const levelProps = getLevelProps();
   const { borderSize, numCircles, radiusMean, deviation } = levelProps;
   // const mean = (MAX_CIRCLE_SIZE - MIN_CIRCLE_SIZE) / 2;
@@ -270,11 +275,41 @@ function resetLevel() {
     // but if we have fewer circles in the level, set their radius to zero
 
     const radius = i < numCircles ? randomNormalWithMean(mean, deviation) : 0;
-    let x2 = randomFloatBetween(-borderSize + radius, borderSize - radius);
-    let y2 = randomFloatBetween(-borderSize + radius, borderSize - radius);
+    let x1 = randomFloatBetween(-borderSize + radius, borderSize - radius);
+    let y1 = randomFloatBetween(-borderSize + radius, borderSize - radius);
 
-    circleProps[i * 4 + 0] = x2;
-    circleProps[i * 4 + 1] = y2;
+    let circleMoveCount = 0;
+    let anyIntersection = true;
+
+    // Check if there's any intersection with previous circles
+    // If there are, place the circles again and recheck
+    while (anyIntersection && circleMoveCount < MOVE_LIMIT_COUNT) {
+      anyIntersection = false;
+      for (let j = i - 1; j > 0; j--) {
+        const existingCircle = circles[j];
+        const r2 = existingCircle.radius;
+        if (r2 === 0) continue;
+        const x2 = circleProps[j * 4 + 0];
+        const y2 = circleProps[j * 4 + 1];
+        anyIntersection =
+          checkCircleIntersection(x1, y1, radius, x2, y2, r2) ||
+          checkCircleAbsorption(x1, y1, radius, x2, y2, r2);
+        if (anyIntersection) break;
+      }
+
+      x1 = randomFloatBetween(-borderSize + radius, borderSize - radius);
+      y1 = randomFloatBetween(-borderSize + radius, borderSize - radius);
+      circleMoveCount++;
+    }
+
+    if (circleMoveCount >= START_SIZE_BOOST_LIMIT_COUNT) {
+      console.warn("HIT CIRCLE MOVE LIMIT COUNT");
+    } else {
+      console.log(`Moved circle ${circleMoveCount} times for ${i}...`);
+    }
+
+    circleProps[i * 4 + 0] = x1;
+    circleProps[i * 4 + 1] = y1;
     circleProps[i * 4 + 2] = radius;
     circleProps[i * 4 + 3] = 0; //unused
 
@@ -287,6 +322,11 @@ function resetLevel() {
 
     circles.push(newCircleProps(i, radius, vel));
   }
+}
+
+function resetPlayer() {
+  const levelProps = getLevelProps();
+  const { borderSize } = levelProps;
 
   // Make player be middleish size
   const sortedCircles = circlesSortedByRadius().filter((c) => c.radius > 0);
