@@ -3,20 +3,26 @@ const RAMP_TIME = 0.1;
 const AUDIO_TIME_CONSTANT = 0.01;
 const WAVE_TYPE = "sine";
 
-const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+let audioContext: null | AudioContext = null;
+let gain: null | GainNode = null;
 
-const compressor = audioContext.createDynamicsCompressor();
-compressor.threshold.setValueAtTime(-24, audioContext.currentTime);
-compressor.knee.setValueAtTime(30, audioContext.currentTime);
-compressor.ratio.setValueAtTime(12, audioContext.currentTime);
-compressor.attack.setValueAtTime(0.003, audioContext.currentTime);
-compressor.release.setValueAtTime(0.25, audioContext.currentTime);
-compressor.connect(audioContext.destination);
+// let audioContext: null | AudioContext = new (window.AudioContext ||
+//   window.webkitAudioContext)();
 
-const gain = audioContext.createGain();
+// // let audio
 
-gain.connect(compressor);
-gain.gain.value = 0.0;
+// const compressor = audioContext.createDynamicsCompressor();
+// compressor.threshold.setValueAtTime(-24, audioContext.currentTime);
+// compressor.knee.setValueAtTime(30, audioContext.currentTime);
+// compressor.ratio.setValueAtTime(12, audioContext.currentTime);
+// compressor.attack.setValueAtTime(0.003, audioContext.currentTime);
+// compressor.release.setValueAtTime(0.25, audioContext.currentTime);
+// compressor.connect(audioContext.destination);
+
+// let gain: null | GainNode = audioContext.createGain();
+
+// gain.connect(compressor);
+// gain.gain.value = 0.0;
 
 const Al = 233.08;
 const Bf = 246.94;
@@ -49,6 +55,20 @@ const cC = [C4, G4, E4];
 const cCmaj7 = [C4, G4, E4];
 const cF = [F3, A3, C3];
 
+export function createAudioContext() {
+  audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  const compressor = audioContext.createDynamicsCompressor();
+  compressor.threshold.setValueAtTime(-24, audioContext.currentTime);
+  compressor.knee.setValueAtTime(30, audioContext.currentTime);
+  compressor.ratio.setValueAtTime(12, audioContext.currentTime);
+  compressor.attack.setValueAtTime(0.003, audioContext.currentTime);
+  compressor.release.setValueAtTime(0.25, audioContext.currentTime);
+  compressor.connect(audioContext.destination);
+  gain = audioContext.createGain();
+  gain.connect(compressor);
+  gain.gain.value = 0.0;
+}
+
 export function setVolume(value: number) {
   gain.gain.value = value;
 }
@@ -66,6 +86,7 @@ export function playChord(
   type: OscillatorType = WAVE_TYPE,
   gainValue: number = 1.0
 ): Sound {
+  if (!audioContext) return;
   const noteGain = audioContext.createGain();
   noteGain.connect(gain);
 

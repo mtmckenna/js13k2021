@@ -52,7 +52,7 @@ const START_SIZE_BOOST_LIMIT_COUNT = 1000;
 
 const MOVE_LIMIT_COUNT = 100;
 const RESTART_TIME = 2000;
-const VOLUME = 0.2;
+export const VOLUME = 0.2;
 
 const circles: Array<Circle> = [];
 
@@ -63,7 +63,7 @@ let MAX_CIRCLE_START_VEL = 0.002;
 const times: number[] = [];
 let fps;
 
-const gameState: GameState = {
+export const gameState: GameState = {
   audio: true,
   started: false,
   currentLevel: 1,
@@ -75,13 +75,12 @@ const gameState: GameState = {
 };
 
 const levelPropMap: Array<LevelProps> = [
-  { borderSize: 0.75, numCircles: 10, radiusMean: 0.01, deviation: 0.04 },
+  { borderSize: 0.75, numCircles: 10, radiusMean: 0.01, deviation: 0.03 },
   { borderSize: 0.25, numCircles: 4, radiusMean: 0.0005, deviation: 0.02 },
   { borderSize: 1.5, numCircles: 20, radiusMean: 0.02, deviation: 0.05 },
   { borderSize: 2.0, numCircles: 40, radiusMean: 0.2, deviation: 0.05 },
-  { borderSize: 1.0, numCircles: 70, radiusMean: 0.05, deviation: 0.01 },
+  { borderSize: 4.0, numCircles: 5, radiusMean: 0.7, deviation: 0.02 },
   { borderSize: 1.0, numCircles: 70, radiusMean: 0.05, deviation: 0.03 },
-
   { borderSize: 1.0, numCircles: 30, radiusMean: 0.02, deviation: 0.01 },
 ];
 
@@ -123,8 +122,6 @@ audioBox.addEventListener("click", () => {
     gameState.audio = true;
   }
 });
-
-setVolume(gameState.audio ? VOLUME : 0.0);
 
 setTimeout(() => displayText("be the biggest"), 1);
 
@@ -364,7 +361,7 @@ function resetPlayer() {
   if (boostLimitCount >= START_SIZE_BOOST_LIMIT_COUNT) {
     console.warn("HIT BOOST LIMIT COUNT");
   } else {
-    console.log(`Boosted ${boostLimitCount} times...`);
+    // console.log(`Boosted ${boostLimitCount} times...`);
   }
 
   // Move player to have no overlaps
@@ -403,7 +400,7 @@ function resetPlayer() {
   if (moveLimitCount >= MOVE_LIMIT_COUNT) {
     console.warn("HIT MOVE LIMIT COUNT");
   } else {
-    console.log(`Moved ${moveLimitCount} times...`);
+    // console.log(`Moved ${moveLimitCount} times...`);
   }
 }
 

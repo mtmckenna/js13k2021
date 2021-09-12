@@ -1,4 +1,10 @@
+import { createAudioContext, setVolume } from "./audio";
+import { gameState, VOLUME } from "./index";
+
+let inputPressedOnce = false;
+
 window.addEventListener("keydown", (e: KeyboardEvent) => {
+  handleInitialInput();
   switch (e.key) {
     case "ArrowLeft":
       inputState.left = true;
@@ -41,6 +47,10 @@ export function addEventListeners(element: HTMLElement) {
   element.addEventListener("touchend", inputReleased, { passive: false });
   element.addEventListener("touchmove", touchMoved, { passive: false });
   element.addEventListener("touchcancel", preventDefault, { passive: false });
+}
+
+export function userHasInteracted(): boolean {
+  return inputPressedOnce;
 }
 
 export const inputState: InputState = {
@@ -93,6 +103,16 @@ function inputPressed(xInput: number, yInput: number) {
 
   if (Math.abs(y) > MIN_INPUT && y < 0) {
     inputState.up = true;
+  }
+
+  handleInitialInput();
+}
+
+function handleInitialInput() {
+  if (!inputPressedOnce) {
+    inputPressedOnce = true;
+    createAudioContext();
+    setVolume(gameState.audio ? VOLUME : 0.0);
   }
 }
 
