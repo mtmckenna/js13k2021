@@ -527,7 +527,7 @@ function tick(t: number) {
   checkCollisions(t);
 
   draw(t);
-  updateFps();
+  // updateFps();
   updateUi();
 }
 
