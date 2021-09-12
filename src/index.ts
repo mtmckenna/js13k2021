@@ -47,7 +47,7 @@ const FRICTION = 0.98;
 const GROW_TIME = 500;
 const START_SIZE = 0.01;
 const START_SIZE_BOOST = 0.0005;
-const PLAYER_RADIUS_BOOST = 0.03;
+const PLAYER_RADIUS_BOOST = 0.005;
 const START_SIZE_BOOST_LIMIT_COUNT = 1000;
 
 const MOVE_LIMIT_COUNT = 100;
@@ -293,7 +293,7 @@ function resetCircles() {
         const y2 = circleProps[j * 4 + 1];
         anyIntersection =
           checkCircleIntersection(x1, y1, radius, x2, y2, r2) ||
-          checkCircleAbsorption(x1, y1, radius, x2, y2, r2);
+          checkCircleAbsorption(x1, y1, radius, x2, y2, r2, false);
         if (anyIntersection) break;
       }
 
@@ -566,10 +566,11 @@ function checkCollisions(t: number) {
       const y1 = circleProps[i + 1];
 
       // give the player a little bit of a boost
-      const r1 =
-        i === player.index
-          ? iCircle.radius + PLAYER_RADIUS_BOOST
-          : iCircle.radius;
+      // const r1 =
+      //   i === player.index
+      //     ? iCircle.radius + PLAYER_RADIUS_BOOST
+      //     : iCircle.radius;
+      const r1 = iCircle.radius;
       const x2 = circleProps[j];
       const y2 = circleProps[j + 1];
       const r2 = jCircle.radius;
@@ -595,7 +596,15 @@ function checkCollisions(t: number) {
       let absorbeeCircle: Circle = null;
 
       if (r1 > r2) {
-        absorbed = checkCircleAbsorption(x1, y1, r1, x2, y2, r2);
+        absorbed = checkCircleAbsorption(
+          x1,
+          y1,
+          r1,
+          x2,
+          y2,
+          r2,
+          i === player.index
+        );
         absorberIndex = iCircleIndex;
         absorbeeIndex = jCircleIndex;
         absorberIndexProps = i;
@@ -603,7 +612,15 @@ function checkCollisions(t: number) {
         absorberCircle = circles[iCircleIndex];
         absorbeeCircle = circles[jCircleIndex];
       } else if (r2 > r1) {
-        absorbed = checkCircleAbsorption(x2, y2, r2, x1, y1, r1);
+        absorbed = checkCircleAbsorption(
+          x2,
+          y2,
+          r2,
+          x1,
+          y1,
+          r1,
+          j === player.index
+        );
         absorberIndex = jCircleIndex;
         absorbeeIndex = iCircleIndex;
         absorberIndexProps = j;
@@ -819,10 +836,12 @@ function checkCircleAbsorption(
   r1: number,
   x2: number,
   y2: number,
-  r2: number
+  r2: number,
+  givePlayerBoost: boolean
 ): boolean {
   const d = distanceBetweenCircles(x1, y1, x2, y2);
-  return r1 > r2 + d;
+  const r = givePlayerBoost ? r1 + PLAYER_RADIUS_BOOST : r1;
+  return r > r2 + d;
 }
 
 function accelerationForCircleVelocity(v: number): number {
