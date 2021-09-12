@@ -648,7 +648,7 @@ function checkCollisions(t: number) {
 
         if (absorbeeIndex === player.index && !gameState.gameOver) {
           gameOverAbsorbed(t);
-        } else if (!levelDone()) {
+        } else if (!levelDone() && absorberIndex === player.index) {
           playSoundBankFunction("absorb", playAbsorbChord);
           setTimeout(() => stopSoundBankFunction("absorb", 2), 250);
         }
@@ -793,8 +793,6 @@ function draw(t: number) {
 function playSoundBankFunction(soundBankKey, soundFunction) {
   if (!soundBank[soundBankKey]) {
     soundBank[soundBankKey] = soundFunction();
-  } else {
-    // console.log("exists already");
   }
 }
 
