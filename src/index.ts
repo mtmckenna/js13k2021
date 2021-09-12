@@ -18,18 +18,14 @@ import {
   clamp,
   easeOutBack,
   lerp,
-  lerpVec3,
   randomFloatBetween,
   randomNormalWithMean,
   randomSign,
 } from "./math-helpers";
 
 import {
-  playMove,
-  playMoveChord,
   playAbsorbChord,
   playAbsorbedChord,
-  playBackground,
   playIntersectChord,
   stopSound,
   Sound,
@@ -48,11 +44,10 @@ const MAX_VEL = 0.004;
 const MAX_VEL_OTHER_CIRCLES = MAX_VEL * OTHER_CIRCLE_SLOWNESS;
 const MAX_ACC = MOVING_ACC * 1;
 const FRICTION = 0.98;
-const MIN_VEL_THRESHOLD = 0.00015;
 const GROW_TIME = 500;
 const START_SIZE = 0.01;
 const START_SIZE_BOOST = 0.0005;
-const PLAYER_RADIUS_BOOST = 0.04;
+const PLAYER_RADIUS_BOOST = 0.03;
 const START_SIZE_BOOST_LIMIT_COUNT = 1000;
 
 const MOVE_LIMIT_COUNT = 100;
@@ -62,8 +57,6 @@ const VOLUME = 0.2;
 const circles: Array<Circle> = [];
 
 let NUM_CIRCLES = 25;
-let MIN_CIRCLE_SIZE = 0.01;
-let MAX_CIRCLE_SIZE = 0.1;
 let MIN_CIRCLE_START_VEL = 0.001;
 let MAX_CIRCLE_START_VEL = 0.002;
 
@@ -82,9 +75,9 @@ const gameState: GameState = {
 };
 
 const levelPropMap: Array<LevelProps> = [
-  { borderSize: 1.0, numCircles: 3, radiusMean: 0.01, deviation: 0.1 },
-  { borderSize: 0.25, numCircles: 3, radiusMean: 0.005, deviation: 0.1 },
-  { borderSize: 0.75, numCircles: 5, radiusMean: 0.02, deviation: 0.1 },
+  { borderSize: 0.75, numCircles: 8, radiusMean: 0.01, deviation: 0.03 },
+  { borderSize: 0.25, numCircles: 3, radiusMean: 0.0005, deviation: 0.02 },
+  { borderSize: 0.75, numCircles: 15, radiusMean: 0.02, deviation: 0.05 },
 ];
 
 const circleProps = new Float32Array(NUM_CIRCLES * 4);
@@ -258,6 +251,7 @@ function nextLevel() {
 
 function resetLevel() {
   hideText(1000);
+  // gameState.started = false;
   gameState.levelWon = false;
   gameState.gameOver = false;
   const levelProps = getLevelProps();
@@ -276,7 +270,6 @@ function resetLevel() {
     // but if we have fewer circles in the level, set their radius to zero
 
     const radius = i < numCircles ? randomNormalWithMean(mean, deviation) : 0;
-
     let x2 = randomFloatBetween(-borderSize + radius, borderSize - radius);
     let y2 = randomFloatBetween(-borderSize + radius, borderSize - radius);
 
@@ -308,6 +301,11 @@ function resetLevel() {
     boostLimitCount++;
     player.radius += START_SIZE_BOOST;
     circleProps[0 + 2] = player.radius;
+  }
+
+  // Give player an extra boost just to make sure
+  if (boostLimitCount > 0) {
+    player.radius += 2 * START_SIZE_BOOST;
   }
 
   if (boostLimitCount >= START_SIZE_BOOST_LIMIT_COUNT) {
@@ -404,25 +402,31 @@ function updateCameraPosition() {
   if (camera.props[1] > borderSize) camera.props[1] = borderSize;
 }
 
-function playAudio() {
-  const playerMoved = distance(player.vel[0], player.vel[1], 0, 0);
-  if (playerMoved >= MIN_VEL_THRESHOLD) {
-    // playSoundBankFunction("move", playMoveChord);
-  } else {
-    // stopSoundBankFunction("move", 0.75);
-  }
-}
-
 function startGame(t: number) {
-  const unstarted =
-    !gameState.started || (gameState.started && gameState.levelWon);
+  const timePassed = t > gameState.readyToTryAgainAt;
+  const inputPressed = anyInputPressed();
 
-  if (unstarted && t > gameState.readyToTryAgainAt) {
-    if (anyInputPressed()) {
-      gameState.started = true;
-      if (gameState.gameOver) resetLevel();
-      if (gameState.levelWon && !gameState.gameWon) nextLevel();
-    }
+  if (!gameState.started && inputPressed && !gameState.gameOver) {
+    gameState.started = true;
+    return;
+  }
+
+  if (!gameState.started && inputPressed && gameState.gameOver && timePassed) {
+    resetLevel();
+    return;
+  }
+
+  if (
+    gameState.started &&
+    inputPressed &&
+    gameState.levelWon &&
+    !gameState.gameWon &&
+    timePassed
+  ) {
+    nextLevel();
+    gameState.readyToTryAgainAt = t + RESTART_TIME;
+    gameState.started = false;
+    return;
   }
 }
 
@@ -433,7 +437,6 @@ function gameOverTooSmall(t: number) {
 function gameOverAbsorbed(t: number) {
   gameOver(t, "you were absorbed<br />try again");
   playSoundBankFunction("absorbed", playAbsorbedChord);
-  console.log("ABSORB");
   setTimeout(() => stopSoundBankFunction("absorbed", 2), 1000);
 }
 
@@ -475,12 +478,11 @@ function tick(t: number) {
       won(t);
   }
 
-  playAudio();
   updateCameraPosition();
   checkCollisions(t);
 
   draw(t);
-  updateFps();
+  // updateFps();
   updateUi();
 }
 
@@ -585,24 +587,29 @@ function checkCollisions(t: number) {
         absorbeeCircle.radius = 0;
         circles[absorbeeIndex].animation.endValue = absorbeeCircle.radius;
 
-        if (absorbeeIndex === 0 && !gameState.gameOver) {
+        if (absorbeeIndex === player.index && !gameState.gameOver) {
           gameOverAbsorbed(t);
+        } else if (!levelDone()) {
+          playSoundBankFunction("absorb", playAbsorbChord);
+          setTimeout(() => stopSoundBankFunction("absorb", 2), 250);
         }
 
         if (!gameState.levelWon && !gameState.gameOver && playerIsTooSmall()) {
           gameOverTooSmall(t);
         }
-
-        // stopSoundBankFunction("absorbed", 2);
       }
     }
   }
 
-  if (anyIntersection) {
+  if (anyIntersection && !levelDone()) {
     playSoundBankFunction("intersect", playIntersectChord);
   } else {
     stopSoundBankFunction("intersect");
   }
+}
+
+function levelDone() {
+  return gameState.gameOver || gameState.gameWon || gameState.levelWon;
 }
 
 function grow(absorberCircle: Circle, absorbeeCircle: Circle) {
@@ -640,12 +647,8 @@ function circlesSortedByRadius() {
   return [...circles].sort(radiusSort);
 }
 
-// let displayedOnce = false;
-// const radiusSort = (a: Circle, b: Circle) => a.radius - b.radius;
 function playerIsTooSmall(): boolean {
   let playerIsTooSmall = false;
-  // // TODO: !!! expensive
-  // const sortedCircles = [...circles].sort(radiusSort);
   const sortedCircles = circlesSortedByRadius();
   let theoPlayerRadius = player.radius;
 
