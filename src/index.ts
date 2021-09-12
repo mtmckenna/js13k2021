@@ -75,7 +75,7 @@ const gameState: GameState = {
 };
 
 const levelPropMap: Array<LevelProps> = [
-  { borderSize: 0.75, numCircles: 10, radiusMean: 0.01, deviation: 0.03 },
+  { borderSize: 0.75, numCircles: 3, radiusMean: 0.01, deviation: 0.03 },
   { borderSize: 0.25, numCircles: 4, radiusMean: 0.0005, deviation: 0.02 },
   { borderSize: 1.5, numCircles: 20, radiusMean: 0.02, deviation: 0.05 },
   { borderSize: 2.0, numCircles: 40, radiusMean: 0.2, deviation: 0.05 },
@@ -247,6 +247,9 @@ function nextLevel() {
     displayText("absorption complete<br />good job");
   } else {
     gameState.currentLevel++;
+    gameState.levelWon = false;
+    gameState.gameOver = false;
+    gameState.started = false;
     resetLevel();
   }
 }
@@ -444,32 +447,51 @@ function updateCameraPosition() {
   if (camera.props[1] > borderSize) camera.props[1] = borderSize;
 }
 
+function readyForInput(t: number): boolean {
+  return t > gameState.readyToTryAgainAt;
+}
+
 function startGame(t: number) {
-  const timePassed = t > gameState.readyToTryAgainAt;
+  if (gameState.started) return;
+  const timePassed = readyForInput(t);
   const inputPressed = anyInputPressed();
 
-  if (!gameState.started && inputPressed && !gameState.gameOver) {
+  // if (!gameState.started && inputPressed && !gameState.gameOver) {
+  //   gameState.started = true;
+  //   return;
+  // }
+
+  // if (inputPressed && timePassed && gameState.levelWon) {
+  //   console.log("LEVELWON");
+  //   resetLevel();
+  //   gameState.readyToTryAgainAt = t + RESTART_TIME;
+  //   return;
+  // }
+
+  if (inputPressed && timePassed) {
     gameState.started = true;
+    // resetLevel();
+    console.log("RESET");
     return;
   }
 
-  if (!gameState.started && inputPressed && gameState.gameOver && timePassed) {
-    resetLevel();
-    return;
-  }
+  // if (!gameState.started && inputPressed && gameState.gameOver && timePassed) {
+  //   resetLevel();
+  //   return;
+  // }
 
-  if (
-    gameState.started &&
-    inputPressed &&
-    gameState.levelWon &&
-    !gameState.gameWon &&
-    timePassed
-  ) {
-    nextLevel();
-    gameState.readyToTryAgainAt = t + RESTART_TIME;
-    gameState.started = false;
-    return;
-  }
+  // if (
+  //   gameState.started &&
+  //   inputPressed &&
+  //   gameState.levelWon &&
+  //   !gameState.gameWon &&
+  //   timePassed
+  // ) {
+  //   nextLevel();
+  //   gameState.readyToTryAgainAt = t + RESTART_TIME;
+  //   // gameState.started = false;
+  //   return;
+  // }
 }
 
 function gameOverTooSmall(t: number) {
@@ -501,23 +523,24 @@ function updateFps() {
   fpsBox.innerText = fps;
 }
 
+// function goToNextLevel() {}
+
 function tick(t: number) {
   requestAnimationFrame(tick);
   resize();
   startGame(t);
 
   const playerLost = !gameState.started && gameState.gameOver;
+
+  if (gameState.levelWon && readyForInput(t)) {
+    nextLevel();
+  }
+
   if (gameState.started || playerLost) {
     handleInput();
     updateCircles(t);
 
-    if (
-      !gameState.gameWon &&
-      !gameState.levelWon &&
-      !gameState.gameOver &&
-      playerIsBiggest()
-    )
-      won(t);
+    if (!levelDone() && playerIsBiggest()) won(t);
   }
 
   updateCameraPosition();
@@ -935,8 +958,6 @@ function updateCircleVelocity(circle: Circle) {
 
 // TODO: Add AI to go after circles?
 function updateCircles(t: number) {
-  // const levelProps = getLevelProps();
-  // const { borderSize } = levelProps;
   for (let i = 0; i < circles.length; i++) {
     const circle = circles[i];
 
