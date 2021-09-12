@@ -43,7 +43,7 @@ const canvas: HTMLCanvasElement = document.createElement("canvas");
 const ctx = canvas.getContext("webgl");
 const MAX_RESOLUTION = 800;
 const MOVING_ACC = 0.0003;
-const OTHER_CIRCLE_SLOWNESS = 0.35;
+const OTHER_CIRCLE_SLOWNESS = 0.15;
 const MAX_VEL = 0.004;
 const MAX_VEL_OTHER_CIRCLES = MAX_VEL * OTHER_CIRCLE_SLOWNESS;
 const MAX_ACC = MOVING_ACC * 1;
@@ -55,6 +55,7 @@ const START_SIZE_BOOST = 0.001;
 const START_SIZE_BOOST_LIMIT_COUNT = 200;
 const MOVE_LIMIT_COUNT = 100;
 const RESTART_TIME = 2500;
+const VOLUME = 0.2;
 
 const circles: Array<Circle> = [];
 
@@ -68,7 +69,7 @@ const times: number[] = [];
 let fps;
 
 const gameState: GameState = {
-  audio: true,
+  audio: false,
   started: false,
   currentLevel: 1,
   gameOver: false,
@@ -114,15 +115,16 @@ audioBox.id = "audio";
 document.body.appendChild(audioBox);
 audioBox.innerText = audioText();
 audioBox.addEventListener("click", () => {
-  console.log("click!!");
   if (getVolume() > 0) {
     setVolume(0);
     gameState.audio = false;
   } else {
-    setVolume(0.5);
+    setVolume(VOLUME);
     gameState.audio = true;
   }
 });
+
+setVolume(gameState.audio ? VOLUME : 0.0);
 
 setTimeout(() => displayText("be the biggest"), 1);
 
