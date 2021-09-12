@@ -22,7 +22,6 @@ import {
   randomFloatBetween,
   randomNormalFloatBetween,
   randomSign,
-  randomNormals,
 } from "./math-helpers";
 
 import {
@@ -52,7 +51,7 @@ const MIN_VEL_THRESHOLD = 0.00015;
 const GROW_TIME = 500;
 const START_SIZE = 0.01;
 const START_SIZE_BOOST = 0.001;
-const START_SIZE_BOOST_LIMIT_COUNT = 200;
+const START_SIZE_BOOST_LIMIT_COUNT = 500;
 const MOVE_LIMIT_COUNT = 100;
 const RESTART_TIME = 2500;
 const VOLUME = 0.2;
@@ -80,7 +79,7 @@ const gameState: GameState = {
 };
 
 const levelPropMap: Array<LevelProps> = [
-  { borderSize: 1.0, numCircles: 25 },
+  { borderSize: 1.5, numCircles: 25 },
   { borderSize: 0.25, numCircles: 3 },
   { borderSize: 0.75, numCircles: 5 },
 ];
@@ -284,12 +283,6 @@ function resetLevel() {
 
     let x2 = randomFloatBetween(-borderSize + radius, borderSize - radius);
     let y2 = randomFloatBetween(-borderSize + radius, borderSize - radius);
-
-    // // try to avoid overlapping in the beginning
-    // while (checkCircleIntersection(x1, y1, r1, x2, y2, radius)) {
-    //   x2 = randomFloatBetween(-borderSize + radius, borderSize - radius);
-    //   y2 = randomFloatBetween(-borderSize + radius, borderSize - radius);
-    // }
 
     circleProps[i * 4 + 0] = x2;
     circleProps[i * 4 + 1] = y2;
@@ -508,6 +501,16 @@ function checkCollisions(t: number) {
   for (let i = 0; i < circleProps.length; i += 4) {
     const iCircleIndex = Math.floor(i / 4);
     const iCircle = circles[iCircleIndex];
+    if (i === 0) {
+      circleColorProps[i + 0] = 0.0;
+      circleColorProps[i + 1] = 1.0;
+      circleColorProps[i + 2] = 0.0;
+    } else {
+      circleColorProps[i + 0] = 1.0;
+      circleColorProps[i + 1] = 1.0;
+      circleColorProps[i + 2] = 1.0;
+    }
+
     for (let j = i + 4; j < circleProps.length; j += 4) {
       const jCircleIndex = Math.floor(j / 4);
       const jCircle = circles[jCircleIndex];

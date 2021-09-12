@@ -107,15 +107,18 @@ vec4 colorCircle(vec4 _color, float _d) {
   return mix(vec4(1.), _color, _d);
 }
 
-vec3 pal( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d )
-{
+vec4 colorCircle2(vec4 _color, float _d, vec4 _colorOutside) {
+  return mix(_colorOutside, _color, _d);
+}
+
+vec3 pal( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d ) {
   return a + b*cos( 6.28318*(c*t+d) );
 }
 
 void main() {
   float zoom = max(log(uCircleProps[0].z/.1),1.); // zoom based on the player's size
   vec2 st = (gl_FragCoord.xy - .5 * uRes) / min(uRes.x, uRes.y) * zoom;
-  float distortedT =  abs(cos(sin((st.x+st.y*5.)+uTime/1000.0))) + atan(st.x * st.y);
+  float distortedT = abs(cos(sin((st.x+st.y*5.)+uTime/1000.0))) + atan(st.x * st.y);
   float t = mod(uTime / 10000.0, 100000.);
   vec4 colorInside = vec4(pal(distortedT, vec3(0.025,0.025,0.1),vec3(0.025,0.025,0.1),vec3(1.0,1.0,1.0),vec3(0.0,0.1,0.2)), 1.);
   vec4 colorOutside = vec4(pal(distortedT, vec3(0.5,0.5,1.0),vec3(0.5,0.5,1.0),vec3(0.5,0.5,1.0),vec3(0.4,0.3,0.2)), 1.);
@@ -150,11 +153,11 @@ void main() {
   for (int i = 0; i < NUM_CIRCLES; i++) {
     if (uCircleProps[i].z <= 0.0) continue;
     float d2 = circleDist(uCircleProps[i].xy - st - uCameraProps.xy, uCircleProps[i].z);
-    color = mix(vec4(1., 1., 1., 1.), color, strokeBoth(d2, .01, CIRCLE_FUZZ));
+    color = mix(vec4(uCircleColorProps[i].r, uCircleColorProps[i].g, uCircleColorProps[i].b, 1.), color, strokeBoth(d2, .01, CIRCLE_FUZZ));
     d = smin(d2, d, BEND2);
 
     if (uCircleColorProps[i].w == 1.0) {
-      color = mix(vec4(.9, 0.0, 0.8, 1.), color, strokeBoth(d2, .01, CIRCLE_FUZZ));
+      color = mix(vec4(.9, 0.9, 0.15, 1.), color, strokeBoth(d2, .01, CIRCLE_FUZZ));
     }
   }
 
