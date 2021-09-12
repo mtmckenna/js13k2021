@@ -24,6 +24,8 @@ export interface Circle {
 export interface LevelProps {
   borderSize: number;
   numCircles: number;
+  radiusMean: number;
+  deviation: number;
 }
 
 export interface GameProgramCache extends ProgramCache {

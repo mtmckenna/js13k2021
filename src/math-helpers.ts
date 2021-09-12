@@ -37,14 +37,10 @@ export function randomSign(): number {
   return Math.random() < 0.5 ? -1 : 1;
 }
 
-export function randomNormalFloatBetween(min: number, max: number) {
-  return Math.abs(randomNormals(Math.random)) * (max - min) + min;
+// https://www.youtube.com/watch?v=EXsdT91XFAY
+export function randomNormalWithMean(mean: number, deviation: number) {
+  return Math.abs(randomNormals(Math.random) * deviation + mean);
 }
-
-// export function randomNormalFloatBetween(min: number, max: number) {
-//   // const mean = (max - min) / 2;
-//   return randomNormals(Math.random) * (max - min) + min;
-// }
 
 // https://spin.atomicobject.com/2019/09/30/skew-normal-prng-javascript/
 export function randomNormals(rng) {

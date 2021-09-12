@@ -20,7 +20,7 @@ import {
   lerp,
   lerpVec3,
   randomFloatBetween,
-  randomNormalFloatBetween,
+  randomNormalWithMean,
   randomSign,
 } from "./math-helpers";
 
@@ -51,7 +51,7 @@ const MIN_VEL_THRESHOLD = 0.00015;
 const GROW_TIME = 500;
 const START_SIZE = 0.01;
 const START_SIZE_BOOST = 0.001;
-const START_SIZE_BOOST_LIMIT_COUNT = 500;
+const START_SIZE_BOOST_LIMIT_COUNT = 1000;
 const MOVE_LIMIT_COUNT = 100;
 const RESTART_TIME = 2500;
 const VOLUME = 0.2;
@@ -79,9 +79,9 @@ const gameState: GameState = {
 };
 
 const levelPropMap: Array<LevelProps> = [
-  { borderSize: 1.5, numCircles: 25 },
-  { borderSize: 0.25, numCircles: 3 },
-  { borderSize: 0.75, numCircles: 5 },
+  { borderSize: 1.0, numCircles: 3, radiusMean: 0.01, deviation: 0.1 },
+  { borderSize: 0.25, numCircles: 3, radiusMean: 0.005, deviation: 0.1 },
+  { borderSize: 0.75, numCircles: 5, radiusMean: 0.02, deviation: 0.1 },
 ];
 
 const circleProps = new Float32Array(NUM_CIRCLES * 4);
@@ -264,13 +264,11 @@ function resetLevel() {
   gameState.levelWon = false;
   gameState.gameOver = false;
   const levelProps = getLevelProps();
-  const { borderSize, numCircles } = levelProps;
+  const { borderSize, numCircles, radiusMean, deviation } = levelProps;
   console.log(borderSize, numCircles);
-  const playerCircleProps = newCircleProps(
-    0,
-    (MAX_CIRCLE_SIZE - MIN_CIRCLE_SIZE) / 2,
-    new Float32Array([0, 0])
-  );
+  // const mean = (MAX_CIRCLE_SIZE - MIN_CIRCLE_SIZE) / 2;
+  const mean = radiusMean;
+  const playerCircleProps = newCircleProps(0, mean, new Float32Array([0, 0]));
 
   updateCircleWithProps(player, playerCircleProps);
   circleProps.set([...initialPlayerProps], 0);
@@ -280,10 +278,9 @@ function resetLevel() {
   for (let i = 1; i < NUM_CIRCLES; i++) {
     // Always generate the max number of circles so we have the same number of circles passed to the shader
     // but if we have fewer circles in the level, set their radius to zero
-    const radius =
-      i < numCircles
-        ? randomNormalFloatBetween(MIN_CIRCLE_SIZE, MAX_CIRCLE_SIZE)
-        : 0;
+
+    console.log(i);
+    const radius = i < numCircles ? randomNormalWithMean(mean, deviation) : 0;
 
     let x2 = randomFloatBetween(-borderSize + radius, borderSize - radius);
     let y2 = randomFloatBetween(-borderSize + radius, borderSize - radius);
