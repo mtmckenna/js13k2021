@@ -37,7 +37,7 @@ const VERTEX_SHADER = require("./shaders/vertex.vert") as GlslShader;
 const FRAGMENT_SHADER = require("./shaders/fragment.frag") as GlslShader;
 const canvas: HTMLCanvasElement = document.createElement("canvas");
 const ctx = canvas.getContext("webgl");
-const MAX_RESOLUTION = 800;
+const MAX_RESOLUTION = 1080;
 const MOVING_ACC = 0.0003;
 const OTHER_CIRCLE_SLOWNESS = 0.15;
 const MAX_VEL = 0.004;
@@ -51,12 +51,12 @@ const PLAYER_RADIUS_BOOST = 0.005;
 const START_SIZE_BOOST_LIMIT_COUNT = 1000;
 
 const MOVE_LIMIT_COUNT = 100;
-const RESTART_TIME = 2500;
+const RESTART_TIME = 2000;
 const VOLUME = 0.2;
 
 const circles: Array<Circle> = [];
 
-let NUM_CIRCLES = 25;
+let NUM_CIRCLES = 75;
 let MIN_CIRCLE_START_VEL = 0.001;
 let MAX_CIRCLE_START_VEL = 0.002;
 
@@ -75,10 +75,13 @@ const gameState: GameState = {
 };
 
 const levelPropMap: Array<LevelProps> = [
-  { borderSize: 0.75, numCircles: 3, radiusMean: 0.01, deviation: 0.03 },
+  { borderSize: 0.75, numCircles: 10, radiusMean: 0.01, deviation: 0.04 },
   { borderSize: 0.25, numCircles: 4, radiusMean: 0.0005, deviation: 0.02 },
   { borderSize: 1.5, numCircles: 20, radiusMean: 0.02, deviation: 0.05 },
   { borderSize: 2.0, numCircles: 40, radiusMean: 0.2, deviation: 0.05 },
+  { borderSize: 1.0, numCircles: 70, radiusMean: 0.05, deviation: 0.01 },
+  { borderSize: 1.0, numCircles: 70, radiusMean: 0.05, deviation: 0.03 },
+
   { borderSize: 1.0, numCircles: 30, radiusMean: 0.02, deviation: 0.01 },
 ];
 
@@ -152,8 +155,6 @@ const squarePositions = new Float32Array([
    1,  1,
    1, -1
 ]);
-
-// let backgroundSound = null;
 
 const program = compiledProgram(
   ctx,
@@ -310,7 +311,7 @@ function resetCircles() {
     if (circleMoveCount >= START_SIZE_BOOST_LIMIT_COUNT) {
       console.warn("HIT CIRCLE MOVE LIMIT COUNT");
     } else {
-      console.log(`Moved circle ${circleMoveCount} times for ${i}...`);
+      // console.log(`Moved circle ${circleMoveCount} times for ${i}...`);
     }
 
     circleProps[i * 4 + 0] = x1;
@@ -339,6 +340,13 @@ function resetPlayer() {
     sortedCircles[Math.floor(sortedCircles.length / 2)].radius +
     START_SIZE_BOOST;
   circleProps[0 + 2] = player.radius;
+
+  // Make sure you aren't going to win automatically...
+  if (sortedCircles[sortedCircles.length - 1].radius < player.radius) {
+    player.radius =
+      sortedCircles[sortedCircles.length - 1].radius - START_SIZE_BOOST;
+    circleProps[0 + 2] = player.radius;
+  }
 
   // Confirm that it's possible for the player to win
   let boostLimitCount = 0;
@@ -452,46 +460,20 @@ function readyForInput(t: number): boolean {
 }
 
 function startGame(t: number) {
-  if (gameState.started) return;
   const timePassed = readyForInput(t);
   const inputPressed = anyInputPressed();
 
-  // if (!gameState.started && inputPressed && !gameState.gameOver) {
-  //   gameState.started = true;
-  //   return;
-  // }
-
-  // if (inputPressed && timePassed && gameState.levelWon) {
-  //   console.log("LEVELWON");
-  //   resetLevel();
-  //   gameState.readyToTryAgainAt = t + RESTART_TIME;
-  //   return;
-  // }
-
-  if (inputPressed && timePassed) {
+  // Initial game start and level changes
+  if (!gameState.started && inputPressed && timePassed) {
     gameState.started = true;
-    // resetLevel();
-    console.log("RESET");
     return;
   }
 
-  // if (!gameState.started && inputPressed && gameState.gameOver && timePassed) {
-  //   resetLevel();
-  //   return;
-  // }
-
-  // if (
-  //   gameState.started &&
-  //   inputPressed &&
-  //   gameState.levelWon &&
-  //   !gameState.gameWon &&
-  //   timePassed
-  // ) {
-  //   nextLevel();
-  //   gameState.readyToTryAgainAt = t + RESTART_TIME;
-  //   // gameState.started = false;
-  //   return;
-  // }
+  // When player lost
+  if (gameState.gameOver && inputPressed && timePassed) {
+    resetLevel();
+    return;
+  }
 }
 
 function gameOverTooSmall(t: number) {
@@ -523,8 +505,6 @@ function updateFps() {
   fpsBox.innerText = fps;
 }
 
-// function goToNextLevel() {}
-
 function tick(t: number) {
   requestAnimationFrame(tick);
   resize();
@@ -547,7 +527,7 @@ function tick(t: number) {
   checkCollisions(t);
 
   draw(t);
-  // updateFps();
+  updateFps();
   updateUi();
 }
 
@@ -590,11 +570,6 @@ function checkCollisions(t: number) {
       const x1 = circleProps[i];
       const y1 = circleProps[i + 1];
 
-      // give the player a little bit of a boost
-      // const r1 =
-      //   i === player.index
-      //     ? iCircle.radius + PLAYER_RADIUS_BOOST
-      //     : iCircle.radius;
       const r1 = iCircle.radius;
       const x2 = circleProps[j];
       const y2 = circleProps[j + 1];
@@ -705,7 +680,7 @@ function calculateGrowthRadius(
   absorberCircleRadius: number,
   absorbeeCircleRadius: number
 ): number {
-  return absorberCircleRadius + absorbeeCircleRadius / 8;
+  return absorberCircleRadius + absorbeeCircleRadius / 12;
 }
 
 function won(t: number) {
@@ -775,7 +750,6 @@ function draw(t: number) {
   ctx.clear(ctx.COLOR_BUFFER_BIT | ctx.DEPTH_BUFFER_BIT);
 
   ////////////////////canvas pos
-
   configureBuffer(
     ctx,
     programInfo,

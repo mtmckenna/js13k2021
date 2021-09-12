@@ -1,5 +1,5 @@
 #version 100
-#define NUM_CIRCLES 25
+#define NUM_CIRCLES 75
 #define PI 3.14159
 #define NUM_LAYERS 3.
 
