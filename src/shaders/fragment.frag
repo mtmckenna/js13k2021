@@ -162,6 +162,7 @@ void main() {
   }
 
   color = colorCircle(color, strokeBoth(d, .01, CIRCLE_FUZZ));
+  // color = colorCircle2(color, strokeBoth(d, .01, CIRCLE_FUZZ), colorOutside);
 
   gl_FragColor = color;
 }
