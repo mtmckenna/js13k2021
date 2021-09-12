@@ -75,9 +75,11 @@ const gameState: GameState = {
 };
 
 const levelPropMap: Array<LevelProps> = [
-  { borderSize: 0.75, numCircles: 70, radiusMean: 0.01, deviation: 0.03 },
-  { borderSize: 0.25, numCircles: 3, radiusMean: 0.0005, deviation: 0.02 },
-  { borderSize: 0.75, numCircles: 15, radiusMean: 0.02, deviation: 0.05 },
+  { borderSize: 0.75, numCircles: 10, radiusMean: 0.01, deviation: 0.03 },
+  { borderSize: 0.25, numCircles: 4, radiusMean: 0.0005, deviation: 0.02 },
+  { borderSize: 1.5, numCircles: 20, radiusMean: 0.02, deviation: 0.05 },
+  { borderSize: 2.0, numCircles: 40, radiusMean: 0.2, deviation: 0.05 },
+  { borderSize: 1.0, numCircles: 30, radiusMean: 0.02, deviation: 0.01 },
 ];
 
 const circleProps = new Float32Array(NUM_CIRCLES * 4);
