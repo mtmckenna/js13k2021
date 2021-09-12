@@ -194,6 +194,10 @@ const programInfo: GameProgramCache = {
       program,
       FRAGMENT_SHADER.uniforms["uBorder"].variableName
     ),
+    uGameWon: ctx.getUniformLocation(
+      program,
+      FRAGMENT_SHADER.uniforms["uGameWon"].variableName
+    ),
   },
 };
 
@@ -715,6 +719,9 @@ function draw(t: number) {
 
   //////////////// time
   ctx.uniform1f(programInfo.uniforms.uTime, t);
+
+  //////////////// game won
+  ctx.uniform1i(programInfo.uniforms.uGameWon, gameState.gameWon ? 1 : 0);
 
   //////////// draw
   ctx.drawArrays(ctx.TRIANGLES, 0, 6);

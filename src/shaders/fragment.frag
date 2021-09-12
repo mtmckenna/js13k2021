@@ -12,6 +12,7 @@ uniform vec4 uCircleColorProps[NUM_CIRCLES];
 uniform vec4 uCameraProps;
 uniform float uTime;
 uniform float uBorder;
+uniform bool uGameWon;
 
 const float WALL_FUZZ = .025;
 const float CIRCLE_FUZZ = .00001;
@@ -103,12 +104,12 @@ float smin( float a, float b, float k )
   return min( a, b ) - h*h*k*(1.0/4.0);
 }
 
-vec4 colorCircle(vec4 _color, float _d) {
-  return mix(vec4(1.), _color, _d);
-}
+// vec4 colorCircle(vec4 _color, float _d) {
+//   return mix(vec4(1.), _color, _d);
+// }
 
-vec4 colorCircle2(vec4 _color, float _d, vec4 _colorOutside) {
-  return mix(_colorOutside, _color, _d);
+vec4 colorCircle(vec4 _color, float _d, vec4 _mixColor) {
+  return mix(_mixColor, _color, _d);
 }
 
 vec3 pal( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d ) {
@@ -146,7 +147,7 @@ void main() {
   // Draw box border
   float boxDist = sdBox(-st - uCameraProps.xy, vec2(uBorder, uBorder));
   float boxDistStroke = strokeBoth(boxDist, .01, CIRCLE_FUZZ);
-  color = colorCircle(color, boxDistStroke);
+  color = colorCircle(color, boxDistStroke, WHITE);
 
   float d = 999.0;
 
@@ -161,8 +162,10 @@ void main() {
     }
   }
 
-  color = colorCircle(color, strokeBoth(d, .01, CIRCLE_FUZZ));
-  // color = colorCircle2(color, strokeBoth(d, .01, CIRCLE_FUZZ), colorOutside);
+  vec4 mixColor = WHITE;
+  if (uGameWon == true) { mixColor = colorOutside; }
+
+  color = colorCircle(color, strokeBoth(d, .01, CIRCLE_FUZZ), mixColor);
 
   gl_FragColor = color;
 }

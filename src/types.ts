@@ -34,6 +34,7 @@ export interface GameProgramCache extends ProgramCache {
     uCameraProps: WebGLUniformLocation | null;
     uTime: WebGLUniformLocation | null;
     uBorder: WebGLUniformLocation | null;
+    uGameWon: WebGLUniformLocation | null;
   };
 }
 
