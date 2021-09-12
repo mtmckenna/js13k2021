@@ -51,8 +51,10 @@ const FRICTION = 0.98;
 const MIN_VEL_THRESHOLD = 0.00015;
 const GROW_TIME = 500;
 const START_SIZE = 0.01;
-const START_SIZE_BOOST = 0.001;
+const START_SIZE_BOOST = 0.0005;
+const PLAYER_RADIUS_BOOST = 0.04;
 const START_SIZE_BOOST_LIMIT_COUNT = 1000;
+
 const MOVE_LIMIT_COUNT = 100;
 const RESTART_TIME = 2500;
 const VOLUME = 0.2;
@@ -246,17 +248,10 @@ function getLevelProps(): LevelProps {
 
 function nextLevel() {
   if (gameState.currentLevel == levelPropMap.length) {
-    console.log(
-      "YOU WON THE WHOLE THING",
-      gameState.currentLevel,
-      levelPropMap.length
-    );
     gameState.gameWon = true;
     displayText("absorption complete<br />good job");
   } else {
-    console.log(gameState.currentLevel);
     gameState.currentLevel++;
-    console.log(gameState.currentLevel);
     resetLevel();
   }
 }
@@ -267,7 +262,6 @@ function resetLevel() {
   gameState.gameOver = false;
   const levelProps = getLevelProps();
   const { borderSize, numCircles, radiusMean, deviation } = levelProps;
-  console.log(borderSize, numCircles);
   // const mean = (MAX_CIRCLE_SIZE - MIN_CIRCLE_SIZE) / 2;
   const mean = radiusMean;
   const playerCircleProps = newCircleProps(0, mean, new Float32Array([0, 0]));
@@ -281,7 +275,6 @@ function resetLevel() {
     // Always generate the max number of circles so we have the same number of circles passed to the shader
     // but if we have fewer circles in the level, set their radius to zero
 
-    console.log(i);
     const radius = i < numCircles ? randomNormalWithMean(mean, deviation) : 0;
 
     let x2 = randomFloatBetween(-borderSize + radius, borderSize - radius);
@@ -302,6 +295,14 @@ function resetLevel() {
     circles.push(newCircleProps(i, radius, vel));
   }
 
+  // Make player be middleish size
+  const sortedCircles = circlesSortedByRadius().filter((c) => c.radius > 0);
+  player.radius =
+    sortedCircles[Math.floor(sortedCircles.length / 2)].radius +
+    START_SIZE_BOOST;
+  circleProps[0 + 2] = player.radius;
+
+  // Confirm that it's possible for the player to win
   let boostLimitCount = 0;
   while (playerIsTooSmall() && boostLimitCount < START_SIZE_BOOST_LIMIT_COUNT) {
     boostLimitCount++;
@@ -315,13 +316,14 @@ function resetLevel() {
     console.log(`Boosted ${boostLimitCount} times...`);
   }
 
+  // Move player to have no overlaps
   let moveLimitCount = 0;
   let playerPositionSet = false;
   let x1 = circleProps[0 + 0];
   let y1 = initialPlayerProps[0 + 1];
   let r1 = player.radius;
 
-  while (!playerPositionSet || moveLimitCount > MOVE_LIMIT_COUNT) {
+  while (!playerPositionSet && moveLimitCount < MOVE_LIMIT_COUNT) {
     playerPositionSet = true;
     moveLimitCount++;
     for (let i = 1; i < circles.length; i++) {
@@ -345,6 +347,12 @@ function resetLevel() {
 
     circleProps[0 + 0] = x1;
     circleProps[0 + 1] = y1;
+  }
+
+  if (moveLimitCount >= MOVE_LIMIT_COUNT) {
+    console.warn("HIT MOVE LIMIT COUNT");
+  } else {
+    console.log(`Moved ${moveLimitCount} times...`);
   }
 }
 
@@ -403,16 +411,6 @@ function playAudio() {
   } else {
     // stopSoundBankFunction("move", 0.75);
   }
-
-  // if (inputState.s) {
-  //   if (!backgroundSound) {
-  //     console.log("BG SOUND");
-  //     backgroundSound = playBackground();
-  //   }
-  //   // playSoundBankFunction("move", playMoveChord);
-  // } else {
-  //   // stopSoundBankFunction("move");
-  // }
 }
 
 function startGame(t: number) {
@@ -434,6 +432,9 @@ function gameOverTooSmall(t: number) {
 
 function gameOverAbsorbed(t: number) {
   gameOver(t, "you were absorbed<br />try again");
+  playSoundBankFunction("absorbed", playAbsorbedChord);
+  console.log("ABSORB");
+  setTimeout(() => stopSoundBankFunction("absorbed", 2), 1000);
 }
 
 function gameOver(t: number, text: string) {
@@ -521,7 +522,12 @@ function checkCollisions(t: number) {
       const jCircle = circles[jCircleIndex];
       const x1 = circleProps[i];
       const y1 = circleProps[i + 1];
-      const r1 = iCircle.radius;
+
+      // give the player a little bit of a boost
+      const r1 =
+        i === player.index
+          ? iCircle.radius + PLAYER_RADIUS_BOOST
+          : iCircle.radius;
       const x2 = circleProps[j];
       const y2 = circleProps[j + 1];
       const r2 = jCircle.radius;
@@ -579,7 +585,7 @@ function checkCollisions(t: number) {
         absorbeeCircle.radius = 0;
         circles[absorbeeIndex].animation.endValue = absorbeeCircle.radius;
 
-        if (absorbeeIndex === 0) {
+        if (absorbeeIndex === 0 && !gameState.gameOver) {
           gameOverAbsorbed(t);
         }
 
@@ -628,12 +634,19 @@ function won(t: number) {
   }
 }
 
+function circlesSortedByRadius() {
+  const radiusSort = (a: Circle, b: Circle) => a.radius - b.radius;
+  // TODO: !!! expensive
+  return [...circles].sort(radiusSort);
+}
+
 // let displayedOnce = false;
-const radiusSort = (a: Circle, b: Circle) => a.radius - b.radius;
+// const radiusSort = (a: Circle, b: Circle) => a.radius - b.radius;
 function playerIsTooSmall(): boolean {
   let playerIsTooSmall = false;
-  // TODO: !!! expensive
-  const sortedCircles = [...circles].sort(radiusSort);
+  // // TODO: !!! expensive
+  // const sortedCircles = [...circles].sort(radiusSort);
+  const sortedCircles = circlesSortedByRadius();
   let theoPlayerRadius = player.radius;
 
   for (let i = 0; i < sortedCircles.length; i++) {
